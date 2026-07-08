@@ -3,7 +3,7 @@ import { Plus, Pencil, Trash2, BookOpen } from "lucide-react";
 import { toast } from "sonner";
 import axios from "axios";
 
-const API_BASE = "https://manfess-back.onrender.com/api";
+const API_BASE = "https://belmon-backend.onrender.com/api";
 
 // Types
 interface Subject {

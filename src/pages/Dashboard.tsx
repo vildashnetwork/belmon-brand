@@ -1,129 +1,3 @@
-// import { useMemo } from "react";
-// import { getStore } from "@/lib/mock-data";
-// import { rankWithTies } from "@/lib/grading";
-// import { Users, GraduationCap, Wallet, TrendingUp, Award, AlertCircle } from "lucide-react";
-// import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line, Legend } from "recharts";
-
-// export function Dashboard() {
-//   const data = useMemo(() => {
-//     const s = getStore();
-//     const perStudent: Record<string, { sum: number; cw: number }> = {};
-//     for (const m of s.marks) {
-//       const sub = s.subjects.find((x) => x.id === m.subjectId);
-//       if (!sub) continue;
-//       const cur = perStudent[m.studentId] ?? { sum: 0, cw: 0 };
-//       cur.sum += m.score * sub.coefficient;
-//       cur.cw += sub.coefficient;
-//       perStudent[m.studentId] = cur;
-//     }
-//     const studentAvgs = Object.entries(perStudent).map(([id, v]) => ({ id, avg: v.cw ? v.sum / v.cw : 0 }));
-//     const ranks = rankWithTies(studentAvgs);
-//     const passRate = studentAvgs.length ? (studentAvgs.filter((v) => v.avg >= 10).length / studentAvgs.length) * 100 : 0;
-//     const totalFeesPaid = s.students.reduce((a, b) => a + b.feesPaid, 0);
-//     const totalFeesDue = s.students.reduce((a, b) => a + b.feesDue, 0);
-//     const classAvgs = s.classes.map((c) => {
-//       const studs = s.students.filter((st) => st.classId === c.id);
-//       const avgs = studs.map((st) => studentAvgs.find((sa) => sa.id === st.id)?.avg ?? 0);
-//       const a = avgs.length ? avgs.reduce((x, y) => x + y, 0) / avgs.length : 0;
-//       return { name: c.name.replace("Form ", "F"), avg: Math.round(a * 10) / 10 };
-//     });
-//     const bestClass = [...classAvgs].sort((a, b) => b.avg - a.avg)[0];
-//     const top = studentAvgs
-//       .map((sa) => ({ ...sa, rank: ranks[sa.id], student: s.students.find((st) => st.id === sa.id)! }))
-//       .filter((t) => t.student)
-//       .sort((a, b) => a.rank - b.rank).slice(0, 7);
-//     const trend = [1, 2, 3, 4, 5, 6].map((seq) => {
-//       const m = s.marks.filter((mm) => mm.sequence === seq);
-//       const avg = m.length ? m.reduce((a, b) => a + b.score, 0) / m.length : 0;
-//       return { sequence: `Seq ${seq}`, average: avg ? Math.round(avg * 10) / 10 : null };
-//     });
-//     return { totalStudents: s.students.length, totalTeachers: s.teachers.length, totalClasses: s.classes.length, totalFeesPaid, totalFeesDue, passRate, classAvgs, bestClass, top, trend };
-//   }, []);
-
-//   return (
-//     <div className="space-y-6">
-//       <div>
-//         <h1 className="font-display text-3xl font-extrabold tracking-tight">Welcome back</h1>
-//         <p className="text-sm text-black/60 mt-1">Here's what's happening across MANFESS Evening School today.</p>
-//       </div>
-//       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-//         <Kpi icon={Users} label="Total Students" value={data.totalStudents.toLocaleString()} hint="+12% vs last year" />
-//         <Kpi icon={GraduationCap} label="Teachers" value={data.totalTeachers.toString()} hint={`${data.totalClasses} classes`} />
-//         <Kpi icon={Wallet} label="Fees Collected" value={`${(data.totalFeesPaid / 1_000_000).toFixed(1)}M XAF`} hint={`${(data.totalFeesDue / 1_000_000).toFixed(1)}M outstanding`} tone="brand" />
-//         <Kpi icon={TrendingUp} label="Pass Rate" value={`${data.passRate.toFixed(1)}%`} hint="Avg ≥ 10/20" />
-//       </div>
-//       <div className="grid lg:grid-cols-3 gap-6">
-//         <div className="lg:col-span-2 bg-white rounded-2xl border border-stone-200 p-6 shadow-sm">
-//           <div className="flex items-center justify-between mb-6">
-//             <div><h3 className="font-display font-bold">Class Averages</h3><p className="text-xs text-black/50 mt-0.5">Weighted average / 20</p></div>
-//             {data.bestClass && <div className="flex items-center gap-2 text-xs bg-brand/10 text-brand px-3 py-1.5 rounded-full font-bold"><Award className="size-3.5" /> Best: {data.bestClass.name} · {data.bestClass.avg}</div>}
-//           </div>
-//           <div className="h-64"><ResponsiveContainer><BarChart data={data.classAvgs}><CartesianGrid strokeDasharray="3 3" stroke="#eee" /><XAxis dataKey="name" tick={{ fontSize: 11 }} /><YAxis domain={[0, 20]} tick={{ fontSize: 11 }} /><Tooltip /><Bar dataKey="avg" fill="#0F7A35" radius={[8, 8, 0, 0]} /></BarChart></ResponsiveContainer></div>
-//         </div>
-//         <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-sm">
-//           <h3 className="font-display font-bold mb-1">Excellence Board</h3>
-//           <p className="text-xs text-black/50 mb-4">Top performing students</p>
-//           <div className="space-y-3">
-//             {data.top.map((t) => (
-//               <div key={t.id} className="flex items-center justify-between gap-3">
-//                 <div className="flex items-center gap-3 min-w-0">
-//                   <div className={`size-7 shrink-0 rounded-full grid place-items-center text-[10px] font-bold ${t.rank <= 3 ? "bg-brand text-white" : "bg-stone-100 text-black/60"}`}>{t.rank}</div>
-//                   <div className="min-w-0">
-//                     <div className="text-sm font-semibold truncate">{t.student.fullName}</div>
-//                     <div className="text-[10px] text-black/40 uppercase tracking-wider">{t.student.department}</div>
-//                   </div>
-//                 </div>
-//                 <div className="font-display font-extrabold text-brand text-sm">{t.avg.toFixed(2)}</div>
-//               </div>
-//             ))}
-//           </div>
-//         </div>
-//       </div>
-//       <div className="grid lg:grid-cols-3 gap-6">
-//         <div className="lg:col-span-2 bg-white rounded-2xl border border-stone-200 p-6 shadow-sm">
-//           <h3 className="font-display font-bold mb-4">Sequence Performance Trend</h3>
-//           <div className="h-56"><ResponsiveContainer><LineChart data={data.trend}><CartesianGrid strokeDasharray="3 3" stroke="#eee" /><XAxis dataKey="sequence" tick={{ fontSize: 11 }} /><YAxis domain={[0, 20]} tick={{ fontSize: 11 }} /><Tooltip /><Legend wrapperStyle={{ fontSize: 11 }} /><Line type="monotone" dataKey="average" stroke="#0F7A35" strokeWidth={3} dot={{ r: 5 }} connectNulls /></LineChart></ResponsiveContainer></div>
-//         </div>
-//         <div className="bg-[#121212] text-white rounded-2xl p-6 flex flex-col justify-between">
-//           <div>
-//             <div className="size-10 bg-brand rounded-lg grid place-items-center mb-4"><AlertCircle className="size-5 text-white" /></div>
-//             <h3 className="font-display font-bold text-lg">AI Insight</h3>
-//             <p className="text-sm text-white/60 mt-2">Form 4 Commercial shows a 1.4 point drop versus last sequence. Schedule remedial Accounting before Sequence 3.</p>
-//           </div>
-//         </div>
-//       </div>
-//     </div>
-//   );
-// }
-
-// function Kpi({ icon: Icon, label, value, hint, tone }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string; hint: string; tone?: "brand" }) {
-//   return (
-//     <div className={`p-5 rounded-2xl border shadow-sm ${tone === "brand" ? "bg-brand text-white border-brand" : "bg-white border-stone-200"}`}>
-//       <div className="flex items-center justify-between mb-3">
-//         <p className={`text-[10px] font-bold uppercase tracking-widest ${tone === "brand" ? "text-white/70" : "text-black/40"}`}>{label}</p>
-//         <Icon className={`size-4 ${tone === "brand" ? "text-white/80" : "text-black/30"}`} />
-//       </div>
-//       <p className="font-display text-3xl font-extrabold tracking-tight">{value}</p>
-//       <p className={`mt-1 text-[11px] font-semibold ${tone === "brand" ? "text-white/70" : "text-brand"}`}>{hint}</p>
-//     </div>
-//   );
-// }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 import { useEffect, useMemo, useState } from "react";
 import { getStore } from "@/lib/mock-data";
@@ -134,7 +8,7 @@ import axios from "axios";
 import { toast } from "sonner";
 import { currentUser } from "@/lib/auth";
 
-const API_BASE = "https://manfess-back.onrender.com/api";
+const API_BASE = "https://belmon-backend.onrender.com/api";
 
 interface Student {
   id: string;
@@ -406,7 +280,7 @@ export function Dashboard() {
     <div className="space-y-6">
       <div>
         <h1 className="font-display text-3xl font-extrabold tracking-tight">Welcome back</h1>
-        <p className="text-sm text-black/60 mt-1">Here's what's happening across MANFESS Evening School today.</p>
+        <p className="text-sm text-black/60 mt-1">Here's what's happening across BELMON  BILINGUAL HIGH SCHOOL today.</p>
       </div>
 
       {/* KPI Cards */}

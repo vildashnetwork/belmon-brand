@@ -1,293 +1,3 @@
-// import { useMemo, useState } from "react";
-// import { Link, useParams, useSearchParams } from "react-router-dom";
-// import { getStore } from "@/lib/mock-data";
-// import { gradeFor, rankWithTies, ordinal, promotionStatus } from "@/lib/grading";
-// import type { Sequence } from "@/lib/types";
-// import { Printer, ArrowLeft, GraduationCap, Download } from "lucide-react";
-// import { toast } from "sonner";
-// import { exportElementToPdf } from "@/lib/pdf-export";
-
-// type SeqFilter = Sequence | "all";
-
-// export function ReportCard() {
-//   const { studentId = "" } = useParams();
-//   const [sp, setSp] = useSearchParams();
-//   const initialSeq = sp.get("seq");
-//   const [seq, setSeq] = useState<SeqFilter>(initialSeq ? (Number(initialSeq) as Sequence) : "all");
-//   const [downloading, setDownloading] = useState(false);
-
-//   const changeSeq = (v: SeqFilter) => {
-//     setSeq(v);
-//     if (v === "all") sp.delete("seq"); else sp.set("seq", String(v));
-//     setSp(sp, { replace: true });
-//   };
-
-//   const data = useMemo(() => buildReportCardData(studentId, seq), [studentId, seq]);
-
-//   const downloadPdf = async () => {
-//     const el = document.getElementById("report-card");
-//     if (!el) return;
-//     setDownloading(true);
-//     try {
-//       await exportElementToPdf(el, `report-card-${data?.student.fullName.replace(/\s+/g, "_")}-${seq === "all" ? "annual" : `seq${seq}`}.pdf`);
-//       toast.success("PDF downloaded");
-//     } catch (e) { console.error(e); toast.error("PDF export failed"); }
-//     finally { setDownloading(false); }
-//   };
-
-//   if (!data) {
-//     return <div className="p-8">Student not found. <Link to="/app/report-cards" className="text-brand underline">Back</Link></div>;
-//   }
-
-//   const seqLabel = seq === "all" ? "Annual Report" : `Sequence ${seq} Report`;
-
-//   return (
-//     <div className="space-y-6">
-//       <div className="flex items-center justify-between flex-wrap gap-3 print:hidden">
-//         <Link to="/app/report-cards" className="flex items-center gap-2 text-sm font-semibold text-black/60 hover:text-black"><ArrowLeft className="size-4" /> All report cards</Link>
-//         <div className="flex items-center gap-2">
-//           <select value={seq === "all" ? "all" : String(seq)} onChange={(e) => changeSeq(e.target.value === "all" ? "all" : Number(e.target.value) as Sequence)} className="px-3 py-2.5 rounded-xl border border-stone-200 bg-white text-sm font-semibold">
-//             <option value="all">Annual</option>
-//             <option value="1">Sequence 1</option><option value="2">Sequence 2</option><option value="3">Sequence 3</option>
-//             <option value="4">Sequence 4</option><option value="5">Sequence 5</option><option value="6">Sequence 6</option>
-//           </select>
-//           <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-stone-200 bg-white text-sm font-semibold hover:bg-stone-50"><Printer className="size-4" /> Print</button>
-//           <button onClick={downloadPdf} disabled={downloading} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand text-white text-sm font-semibold hover:bg-brand/90 disabled:opacity-50"><Download className="size-4" /> {downloading ? "Generating…" : "Download PDF"}</button>
-//         </div>
-//       </div>
-
-//       <div id="report-card">
-//         <ReportCardCard data={data} seq={seq} seqLabel={seqLabel} />
-//       </div>
-
-//       <style>{`@media print { @page { size: A4; margin: 8mm; } body { background: white !important; } aside, header { display: none !important; } main > div { padding: 0 !important; } #report-card { border: none !important; } }`}</style>
-//     </div>
-//   );
-// }
-
-// export function ReportCardCard({ data, seq, seqLabel }: { data: NonNullable<ReturnType<typeof buildReportCardData>>; seq: SeqFilter; seqLabel: string }) {
-//   const { student, cls, rows, avg, totalPoints, totalCoef, position, classSize, classGeneralAvg } = data;
-//   const status = promotionStatus(avg);
-//   return (
-//     <div className="bg-white border border-stone-200 rounded-2xl max-w-4xl mx-auto print:border-0 print:shadow-none print:rounded-none report-card-page">
-//         <div className="p-8 print:p-6">
-//           {/* Cameroon official header */}
-//           <div className="grid grid-cols-3 gap-4 text-center text-[10px] font-bold uppercase tracking-wider pb-4 border-b-2 border-[#121212]">
-//             <div>
-//               République du Cameroun<br/>
-//               <span className="font-normal italic">Paix — Travail — Patrie</span><br/>
-//               Ministère des Enseignements Secondaires
-//             </div>
-//             <div className="flex flex-col items-center justify-center">
-//               <div className="size-12 bg-brand rounded-xl grid place-items-center mb-1"><GraduationCap className="size-6 text-white" /></div>
-//               <div className="font-display text-base font-extrabold tracking-tight">MANFESS EVENING SCHOOL</div>
-//               <div className="text-[9px] text-black/60 font-normal">P.O. Box 1234, Yaoundé · MINESEC accredited</div>
-//             </div>
-//             <div>
-//               Republic of Cameroon<br/>
-//               <span className="font-normal italic">Peace — Work — Fatherland</span><br/>
-//               Ministry of Secondary Education
-//             </div>
-//           </div>
-
-//           <div className="text-center my-4">
-//             <div className="inline-block px-6 py-1.5 bg-[#121212] text-white text-xs font-bold uppercase tracking-widest rounded-full">
-//               {seqLabel} · Academic Year 2024 / 2025
-//             </div>
-//           </div>
-
-//           {/* Student info */}
-//           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-//             <Info label="Student" value={student.fullName} />
-//             <Info label="Admission №" value={student.admissionNumber} />
-//             <Info label="Class" value={cls.name} />
-//             <Info label="Section" value={student.department} />
-//             <Info label="Sex" value={student.gender === "M" ? "Male" : "Female"} />
-//             <Info label="Date of Birth" value={student.dob} />
-//             <Info label="Class Size" value={String(classSize)} />
-//             <Info label="Position" value={position ? `${ordinal(position)} / ${classSize}` : "—"} />
-//           </div>
-
-//           {/* Marks table — Cameroon format */}
-//           <table className="w-full text-[11px] mt-4 border border-[#121212]">
-//             <thead className="bg-[#121212] text-white">
-//               <tr>
-//                 <th className="px-2 py-1.5 text-left border border-[#121212]">Discipline / Subject</th>
-//                 <th className="px-2 py-1.5 border border-[#121212]">Note /20</th>
-//                 <th className="px-2 py-1.5 border border-[#121212]">Coef</th>
-//                 <th className="px-2 py-1.5 border border-[#121212]">Total</th>
-//                 <th className="px-2 py-1.5 border border-[#121212]">Moy. Cl.</th>
-//                 <th className="px-2 py-1.5 border border-[#121212]">Min</th>
-//                 <th className="px-2 py-1.5 border border-[#121212]">Max</th>
-//                 <th className="px-2 py-1.5 border border-[#121212]">Grade</th>
-//                 <th className="px-2 py-1.5 text-left border border-[#121212]">Appréciation</th>
-//                 <th className="px-2 py-1.5 text-left border border-[#121212]">Enseignant</th>
-//               </tr>
-//             </thead>
-//             <tbody>
-//               {rows.map((r) => (
-//                 <tr key={r.sub.id} className="even:bg-stone-50">
-//                   <td className="px-2 py-1.5 font-semibold border border-stone-300">{r.sub.name}</td>
-//                   <td className="px-2 py-1.5 text-center font-display font-bold border border-stone-300">{r.subjAvg.toFixed(2)}</td>
-//                   <td className="px-2 py-1.5 text-center border border-stone-300">{r.sub.coefficient}</td>
-//                   <td className="px-2 py-1.5 text-center font-bold border border-stone-300">{r.total.toFixed(2)}</td>
-//                   <td className="px-2 py-1.5 text-center text-black/70 border border-stone-300">{r.classAvg.toFixed(2)}</td>
-//                   <td className="px-2 py-1.5 text-center text-black/70 border border-stone-300">{r.min.toFixed(1)}</td>
-//                   <td className="px-2 py-1.5 text-center text-black/70 border border-stone-300">{r.max.toFixed(1)}</td>
-//                   <td className="px-2 py-1.5 text-center font-bold text-brand border border-stone-300">{r.grade}</td>
-//                   <td className="px-2 py-1.5 text-black/70 border border-stone-300">{r.remark}</td>
-//                   <td className="px-2 py-1.5 text-[10px] text-black/60 border border-stone-300">{r.teacher}</td>
-//                 </tr>
-//               ))}
-//             </tbody>
-//             <tfoot className="bg-[#121212]/5 font-bold">
-//               <tr>
-//                 <td className="px-2 py-1.5 border border-[#121212]">TOTAL</td>
-//                 <td className="px-2 py-1.5 text-center border border-[#121212]">—</td>
-//                 <td className="px-2 py-1.5 text-center border border-[#121212]">{totalCoef}</td>
-//                 <td className="px-2 py-1.5 text-center border border-[#121212]">{totalPoints.toFixed(2)}</td>
-//                 <td colSpan={6} className="border border-[#121212]" />
-//               </tr>
-//             </tfoot>
-//           </table>
-
-//           {/* Summary */}
-//           <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mt-4 text-xs">
-//             <Summary label="Moyenne / 20" value={avg.toFixed(2)} highlight />
-//             <Summary label="Moy. Classe" value={classGeneralAvg.toFixed(2)} />
-//             <Summary label="Rang" value={position ? `${ordinal(position)} / ${classSize}` : "—"} />
-//             <Summary label="Mention" value={gradeFor(avg).remark} />
-//             <Summary label="Décision" value={status === "Promoted" ? "Admis(e)" : "Redouble"} tone={status === "Promoted" ? "good" : "bad"} />
-//           </div>
-
-//           {/* Conduct */}
-//           <div className="grid sm:grid-cols-4 gap-2 mt-3 text-xs">
-//             <Info label="Conduite" value="Bonne" />
-//             <Info label="Discipline" value="Satisfaisante" />
-//             <Info label="Absences (h)" value="0" />
-//             <Info label="Retards" value="0" />
-//           </div>
-
-//           {/* Remarks */}
-//           <div className="grid sm:grid-cols-2 gap-3 mt-4 text-xs">
-//             <div className="border border-stone-300 rounded-lg p-3">
-//               <div className="text-[10px] uppercase tracking-widest font-bold text-black/50 mb-1">Class Master's Remark</div>
-//               <p className="text-black/70 italic">{gradeFor(avg).remark} performance. {avg >= 14 ? "Keep it up." : avg >= 10 ? "Effort can be improved." : "Serious attention required."}</p>
-//             </div>
-//             <div className="border border-stone-300 rounded-lg p-3">
-//               <div className="text-[10px] uppercase tracking-widest font-bold text-black/50 mb-1">Principal's Remark</div>
-//               <p className="text-black/70 italic">{avg >= 16 ? "Outstanding. A pride to the school." : avg >= 12 ? "Satisfactory. Continue working hard." : "Must take studies more seriously."}</p>
-//             </div>
-//           </div>
-
-//           <div className="grid grid-cols-3 gap-6 mt-8 text-center text-xs">
-//             {["Class Master", "Principal", "Parent / Guardian"].map((r) => (
-//               <div key={r}>
-//                 <div className="h-10 border-b border-dashed border-stone-400" />
-//                 <div className="mt-1 font-semibold text-black/70">{r}</div>
-//               </div>
-//             ))}
-//           </div>
-
-//           <div className="mt-6 pt-3 border-t border-stone-300 flex items-center justify-between text-[10px] text-black/40">
-//             <div>Issued by MAMS · MANFESS Evening School · {new Date().toLocaleDateString()}</div>
-//             <div className="font-mono">VERIF#{student.id.toUpperCase()}-{seq === "all" ? "ANN" : `S${seq}`}</div>
-//           </div>
-//         </div>
-//     </div>
-//   );
-// }
-
-// export function buildReportCardData(studentId: string, seq: SeqFilter) {
-//   const s = getStore();
-//   const student = s.students.find((x) => x.id === studentId);
-//   if (!student) return null;
-//   const cls = s.classes.find((c) => c.id === student.classId)!;
-//   const subjects = s.subjects.filter((sub) => sub.classIds.includes(cls.id));
-
-//   const filterMarks = (subId: string, studId: string) =>
-//     s.marks.filter((m) => m.studentId === studId && m.subjectId === subId && (seq === "all" || m.sequence === seq));
-
-//   // teacher name comes from the most recent recordedBy on this subject; falls back to assigned teacher
-//   const teacherForSubject = (subId: string): string => {
-//     const subMarks = s.marks
-//       .filter((m) => m.subjectId === subId && m.recordedBy)
-//       .sort((a, b) => (b.recordedAt ?? "").localeCompare(a.recordedAt ?? ""));
-//     if (subMarks[0]?.recordedBy) return subMarks[0].recordedBy;
-//     const sub = s.subjects.find((x) => x.id === subId);
-//     const tId = sub?.teacherIds?.[0];
-//     const t = (tId && s.teachers.find((tt) => tt.id === tId)) || s.teachers.find((tt) => tt.subjectIds.includes(subId));
-//     return t?.fullName ?? "—";
-//   };
-
-//   const rows = subjects.map((sub) => {
-//     const ms = filterMarks(sub.id, student.id);
-//     const subjAvg = ms.length ? ms.reduce((a, b) => a + b.score, 0) / ms.length : 0;
-//     const classStudents = s.students.filter((st) => st.classId === cls.id);
-//     const classMarksForSub = s.marks.filter((m) => m.subjectId === sub.id && classStudents.some((cs) => cs.id === m.studentId) && (seq === "all" || m.sequence === seq));
-//     const classAvg = classMarksForSub.length ? classMarksForSub.reduce((a, b) => a + b.score, 0) / classMarksForSub.length : 0;
-//     const max = classMarksForSub.length ? Math.max(...classMarksForSub.map((m) => m.score)) : 0;
-//     const min = classMarksForSub.length ? Math.min(...classMarksForSub.map((m) => m.score)) : 0;
-//     const { grade, remark } = gradeFor(subjAvg);
-//     return { sub, subjAvg, classAvg, max, min, total: subjAvg * sub.coefficient, grade, remark, teacher: teacherForSubject(sub.id) };
-//   });
-
-//   const totalPoints = rows.reduce((a, b) => a + b.total, 0);
-//   const totalCoef = rows.reduce((a, b) => a + b.sub.coefficient, 0);
-//   const avg = totalCoef ? totalPoints / totalCoef : 0;
-
-//   const classStudents = s.students.filter((st) => st.classId === cls.id);
-//   const classAvgs = classStudents.map((st) => {
-//     let sum = 0, cw = 0;
-//     for (const sub of subjects) {
-//       const ms = filterMarks(sub.id, st.id);
-//       const a = ms.length ? ms.reduce((x, y) => x + y.score, 0) / ms.length : 0;
-//       if (a) { sum += a * sub.coefficient; cw += sub.coefficient; }
-//     }
-//     return { id: st.id, avg: cw ? sum / cw : 0 };
-//   });
-//   const ranks = rankWithTies(classAvgs);
-//   const position = ranks[student.id];
-//   const classGeneralAvg = classAvgs.length ? classAvgs.reduce((a, b) => a + b.avg, 0) / classAvgs.length : 0;
-
-//   return { student, cls, rows, avg, totalPoints, totalCoef, position, classSize: classStudents.length, classGeneralAvg };
-// }
-
-// function Info({ label, value }: { label: string; value: string }) {
-//   return (
-//     <div className="border border-stone-300 rounded-md px-2 py-1">
-//       <div className="text-[9px] uppercase tracking-widest font-bold text-black/50">{label}</div>
-//       <div className="text-xs font-semibold mt-0.5 truncate">{value}</div>
-//     </div>
-//   );
-// }
-// function Summary({ label, value, highlight, tone }: { label: string; value: string; highlight?: boolean; tone?: "good" | "bad" }) {
-//   const color = tone === "good" ? "text-brand" : tone === "bad" ? "text-red-600" : highlight ? "text-brand" : "text-[#121212]";
-//   return (
-//     <div className={`rounded-lg p-2 border ${highlight ? "bg-brand/5 border-brand/30" : "border-stone-300"}`}>
-//       <div className="text-[9px] uppercase tracking-widest font-bold text-black/50">{label}</div>
-//       <div className={`font-display text-base font-extrabold mt-0.5 ${color}`}>{value}</div>
-//     </div>
-//   );
-// }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -301,7 +11,7 @@ import axios from "axios";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 
-const API_BASE = "https://manfess-back.onrender.com/api";
+const API_BASE = "https://belmon-backend.onrender.com/api";
 
 // Term definitions for Cameroon school system
 const TERMS = [
@@ -495,7 +205,7 @@ export function ReportCard() {
 
     // Header
     doc.setFontSize(16);
-    doc.text("MANFESS Evening School", 105, y, { align: "center" });
+    doc.text("BELMON BILINGUAL HIGH SCHOOL", 105, y, { align: "center" });
     y += 7;
     doc.setFontSize(9);
     doc.text("Republic of Cameroon · Peace — Work — Fatherland", 105, y, { align: "center" });
@@ -561,7 +271,7 @@ export function ReportCard() {
     doc.setFontSize(8);
     doc.text(`Parent: ${data.student.parentName} · Phone: ${data.student.parentPhone}`, 14, finalY + 10);
     doc.text(`Generated: ${new Date().toLocaleString()}`, 14, finalY + 16);
-    doc.text("© 2026 MANFESS Evening School", 105, finalY + 16, { align: "center" });
+    doc.text("© 2026 MANFESS BILINGUAL HIGH SCHOOL", 105, finalY + 16, { align: "center" });
   };
 
   const changeTerm = (termId: string) => {
@@ -643,7 +353,7 @@ export function ReportCard() {
                 <div className="size-12 bg-brand rounded-xl grid place-items-center mb-1">
                   <GraduationCap className="size-6 text-white" />
                 </div>
-                <div className="font-display text-base font-extrabold tracking-tight">MANFESS EVENING SCHOOL</div>
+                <div className="font-display text-base font-extrabold tracking-tight">BELMON BILINGUAL HIGH SCHOOL</div>
                 <div className="text-[9px] text-black/60 font-normal">P.O. Box 1234, Yaoundé · MINESEC accredited</div>
               </div>
               <div>
@@ -760,7 +470,7 @@ export function ReportCard() {
             </div>
 
             <div className="mt-6 pt-3 border-t border-stone-300 flex items-center justify-between text-[10px] text-black/40">
-              <div>Issued by MAMS · MANFESS Evening School · {new Date().toLocaleDateString()}</div>
+              <div>Issued by MAMS · BELMON  BILINGUAL HIGH SCHOOL · {new Date().toLocaleDateString()}</div>
               <div className="font-mono">VERIF#{student.id.toUpperCase()}-{term.id.toUpperCase()}</div>
             </div>
           </div>

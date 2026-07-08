@@ -1,9 +1,10 @@
+
 // import { useState, useEffect, useMemo } from "react";
 // import { Mail, Phone, BookOpen, Plus, Pencil, Trash2, Search, X } from "lucide-react";
 // import { toast } from "sonner";
 // import axios from "axios";
 
-// const API_BASE = "https://manfess-back.onrender.com/api/users";
+// const API_BASE = "https://belmon-backend.onrender.com/api/users";
 
 // // Types
 // interface Teacher {
@@ -28,6 +29,9 @@
 // interface Class {
 //   id: string;
 //   className: string;
+//   department?: string;
+//   cycle?: string;
+//   acedemicYear?: string;
 // }
 
 // export function TeachersPage() {
@@ -42,15 +46,12 @@
 //   const role = "admin";
 //   const canEdit = role === "super_admin" || role === "admin";
 
-//   // Check if a teacher ID is from the database
 //   const isDatabaseId = (id: string) => {
 //     return /^[0-9a-fA-F]{24}$/.test(id);
 //   };
 
-//   // Filter teachers based on search term
 //   const filteredTeachers = useMemo(() => {
 //     if (!searchTerm.trim()) return teachers;
-
 //     const term = searchTerm.toLowerCase().trim();
 //     return teachers.filter(teacher =>
 //       teacher.fullName.toLowerCase().includes(term) ||
@@ -89,9 +90,8 @@
 
 //   const fetchSubjects = async () => {
 //     try {
-//       const response = await axios.get("https://manfess-back.onrender.com/api/subjects");
+//       const response = await axios.get("https://belmon-backend.onrender.com/api/subjects");
 //       if (response.data.success) {
-//         // Map _id to id for subjects
 //         const mappedSubjects = response.data.data.map((subj: any) => ({
 //           id: subj._id || subj.id,
 //           name: subj.name,
@@ -107,18 +107,30 @@
 
 //   const fetchClasses = async () => {
 //     try {
-//       const response = await axios.get("https://manfess-back.onrender.com/api/classes");
+//       const response = await axios.get("https://belmon-backend.onrender.com/api/classes");
 //       if (response.data.success) {
-//         // Map _id to id for classes
-//         const mappedClasses = response.data.data.map((cls: any) => ({
-//           id: cls._id || cls.id,
-//           className: cls.className || cls.name
-//         }));
+//         console.log("📚 Raw classes from API:", response.data.data);
+
+//         // Map classes with all available fields
+//         const mappedClasses = response.data.data.map((cls: any) => {
+//           // Log each class to see what fields are available
+//           console.log("Class data:", cls);
+
+//           return {
+//             id: cls._id || cls.id,
+//             className: cls.className || cls.name || "Unknown",
+//             department: cls.department || cls.section || "",
+//             cycle: cls.cycle || "",
+//             acedemicYear: cls.acedemicYear || cls.academicYear || ""
+//           };
+//         });
+
 //         setClasses(mappedClasses);
-//         console.log("📚 Classes loaded:", mappedClasses);
+//         console.log("📚 Mapped classes:", mappedClasses);
 //       }
 //     } catch (error) {
 //       console.error("Error fetching classes:", error);
+//       toast.error("Failed to fetch classes");
 //     }
 //   };
 
@@ -130,7 +142,6 @@
 
 //   const upsert = async (teacher: Teacher) => {
 //     try {
-//       // Validate required fields
 //       if (!teacher.fullName.trim()) {
 //         toast.error("Full name is required");
 //         return;
@@ -148,7 +159,6 @@
 //         return;
 //       }
 
-//       // Map Teacher to User model format
 //       const userData = {
 //         name: teacher.fullName.trim(),
 //         username: teacher.email.trim(),
@@ -160,20 +170,16 @@
 //         acedemicYear: teacher.acedemicYear
 //       };
 
-//       console.log("📤 Sending data to API:", JSON.stringify(userData, null, 2));
-
 //       const isExisting = teacher.id && isDatabaseId(teacher.id);
 
 //       let response;
 //       if (isExisting) {
-//         console.log("🔄 Updating teacher:", teacher.id);
 //         response = await axios.put(`${API_BASE}/${teacher.id}`, userData);
 //         if (response.data.success) {
 //           toast.success("Teacher updated successfully");
 //           await fetchTeachers();
 //         }
 //       } else {
-//         console.log("➕ Creating new teacher");
 //         response = await axios.post(API_BASE, userData);
 //         if (response.data.success) {
 //           toast.success("Teacher added successfully");
@@ -185,13 +191,8 @@
 //       setShowNew(false);
 //     } catch (error: any) {
 //       console.error("Error saving teacher:", error);
-
 //       if (error.response) {
-//         console.error("Response data:", error.response.data);
-//         console.error("Response status:", error.response.status);
-
 //         const errorMessage = error.response.data?.message || "Operation failed";
-
 //         if (error.response.status === 500) {
 //           toast.error("Server error. Please try again later.");
 //         } else if (error.response.status === 400) {
@@ -215,7 +216,6 @@
 
 //   const remove = async (id: string) => {
 //     if (!window.confirm("Are you sure you want to delete this teacher?")) return;
-
 //     try {
 //       const response = await axios.delete(`${API_BASE}/${id}`);
 //       if (response.data.success) {
@@ -256,7 +256,6 @@
 //         )}
 //       </div>
 
-//       {/* Search Field */}
 //       <div className="relative max-w-md">
 //         <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-black/40" />
 //         <input
@@ -402,18 +401,14 @@
 //   const set = <K extends keyof Teacher>(k: K, v: Teacher[K]) =>
 //     setForm((f) => ({ ...f, [k]: v }));
 
-//   // Toggle subject selection - UNIQUE SELECTION (only one subject at a time)
 //   const toggleSubject = (id: string) => {
-//     // If the subject is already selected, deselect it
 //     if (form.subjectIds.includes(id)) {
 //       set("subjectIds", []);
 //     } else {
-//       // Otherwise, select only this subject (replace all others)
 //       set("subjectIds", [id]);
 //     }
 //   };
 
-//   // Toggle class selection - MULTIPLE SELECTION
 //   const toggleClass = (id: string) => {
 //     const current = form.classIds;
 //     const updated = current.includes(id)
@@ -422,19 +417,16 @@
 //     set("classIds", updated);
 //   };
 
-//   // Filter subjects based on search
 //   const filteredSubjects = subjects.filter(s =>
 //     s.name.toLowerCase().includes(subjectSearch.toLowerCase()) ||
 //     s.code.toLowerCase().includes(subjectSearch.toLowerCase())
 //   );
 
-//   // Filter classes based on search
 //   const filteredClasses = classes.filter(c =>
 //     c.className.toLowerCase().includes(classSearch.toLowerCase())
 //   );
 
 //   const handleSave = async () => {
-//     // Validate required fields
 //     if (!form.fullName.trim()) {
 //       toast.error("Full name is required");
 //       return;
@@ -451,17 +443,6 @@
 //       toast.error("Academic year is required");
 //       return;
 //     }
-
-//     // Log what we're saving
-//     console.log("💾 Saving teacher data:", {
-//       fullName: form.fullName,
-//       email: form.email,
-//       phone: form.phone,
-//       subjectIds: form.subjectIds,
-//       classIds: form.classIds,
-//       role: form.role,
-//       acedemicYear: form.acedemicYear
-//     });
 
 //     setSaving(true);
 //     try {
@@ -534,7 +515,7 @@
 //           </Field>
 //         </div>
 
-//         {/* Subjects Section - UNIQUE SELECTION */}
+//         {/* Subjects Section */}
 //         <div className="mt-4">
 //           <div className="flex items-center justify-between mb-2">
 //             <div className="text-[10px] uppercase tracking-widest font-bold text-black/50">Subjects (Select One)</div>
@@ -543,7 +524,6 @@
 //             </div>
 //           </div>
 
-//           {/* Subject Search */}
 //           <div className="relative mb-2">
 //             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-black/40" />
 //             <input
@@ -587,7 +567,7 @@
 //           </div>
 //         </div>
 
-//         {/* Classes Section - MULTIPLE SELECTION */}
+//         {/* Classes Section */}
 //         <div className="mt-4">
 //           <div className="flex items-center justify-between mb-2">
 //             <div className="text-[10px] uppercase tracking-widest font-bold text-black/50">Classes (Select Multiple)</div>
@@ -596,7 +576,6 @@
 //             </div>
 //           </div>
 
-//           {/* Class Search */}
 //           <div className="relative mb-2">
 //             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-black/40" />
 //             <input
@@ -614,6 +593,12 @@
 //             ) : (
 //               filteredClasses.map((c) => {
 //                 const isSelected = form.classIds.includes(c.id);
+//                 // Display class with department if available
+//                 // alert(c.id)
+//                 let displayName = c.className;
+//                 if (c.department) {
+//                   displayName = `${c.className} (${c.department})`;
+//                 }
 //                 return (
 //                   <button
 //                     key={c.id}
@@ -624,7 +609,7 @@
 //                       : "border-stone-200 text-black/60 hover:bg-stone-50 hover:border-brand/50"
 //                       }`}
 //                   >
-//                     {c.className + " " + c?.department}
+//                     {displayName}
 //                     {isSelected && (
 //                       <span className="ml-1 inline-block">✓</span>
 //                     )}
@@ -709,29 +694,12 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 import { useState, useEffect, useMemo } from "react";
-import { Mail, Phone, BookOpen, Plus, Pencil, Trash2, Search, X } from "lucide-react";
+import { Mail, Phone, BookOpen, Plus, Pencil, Trash2, Search, X, Users, GraduationCap } from "lucide-react";
 import { toast } from "sonner";
 import axios from "axios";
 
-const API_BASE = "https://manfess-back.onrender.com/api/users";
+const API_BASE = "https://belmon-backend.onrender.com/api/users";
 
 // Types
 interface Teacher {
@@ -745,12 +713,16 @@ interface Teacher {
   role?: string;
   username?: string;
   acedemicYear?: string;
+  gender?: string;
+  dateOfBirth?: string;
+  address?: string;
 }
 
 interface Subject {
   id: string;
   name: string;
   code: string;
+  department?: string;
 }
 
 interface Class {
@@ -759,6 +731,7 @@ interface Class {
   department?: string;
   cycle?: string;
   acedemicYear?: string;
+  path?: string; // General or Technical
 }
 
 export function TeachersPage() {
@@ -769,6 +742,8 @@ export function TeachersPage() {
   const [editing, setEditing] = useState<Teacher | null>(null);
   const [showNew, setShowNew] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedDepartment, setSelectedDepartment] = useState<string>("");
+  const [selectedClass, setSelectedClass] = useState<string>("");
 
   const role = "admin";
   const canEdit = role === "super_admin" || role === "admin";
@@ -777,16 +752,63 @@ export function TeachersPage() {
     return /^[0-9a-fA-F]{24}$/.test(id);
   };
 
+  // Get unique departments from teachers
+  const departments = useMemo(() => {
+    const depts = new Set<string>();
+    teachers.forEach(t => {
+      subjects.forEach(s => {
+        if (t.subjectIds.includes(s.id) && s.department) {
+          depts.add(s.department);
+        }
+      });
+    });
+    return Array.from(depts);
+  }, [teachers, subjects]);
+
+  // Get unique classes from teachers
+  const classOptions = useMemo(() => {
+    const opts = new Set<string>();
+    teachers.forEach(t => {
+      t.classIds.forEach(cId => {
+        const cls = classes.find(c => c.id === cId);
+        if (cls) opts.add(cls.className);
+      });
+    });
+    return Array.from(opts);
+  }, [teachers, classes]);
+
   const filteredTeachers = useMemo(() => {
-    if (!searchTerm.trim()) return teachers;
-    const term = searchTerm.toLowerCase().trim();
-    return teachers.filter(teacher =>
-      teacher.fullName.toLowerCase().includes(term) ||
-      teacher.email.toLowerCase().includes(term) ||
-      teacher.phone.includes(term) ||
-      teacher.qualification?.toLowerCase().includes(term)
-    );
-  }, [teachers, searchTerm]);
+    let filtered = teachers;
+
+    // Search filter
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase().trim();
+      filtered = filtered.filter(teacher =>
+        teacher.fullName.toLowerCase().includes(term) ||
+        teacher.email.toLowerCase().includes(term) ||
+        teacher.phone.includes(term) ||
+        teacher.qualification?.toLowerCase().includes(term)
+      );
+    }
+
+    // Department filter
+    if (selectedDepartment) {
+      filtered = filtered.filter(teacher => {
+        const teacherSubjects = subjects.filter(s => teacher.subjectIds.includes(s.id));
+        return teacherSubjects.some(s => s.department === selectedDepartment);
+      });
+    }
+
+    // Class filter
+    if (selectedClass) {
+      filtered = filtered.filter(teacher => {
+        const teacherClasses = classes.filter(c => teacher.classIds.includes(c.id));
+        return teacherClasses.some(c => c.className === selectedClass);
+      });
+    }
+
+    return filtered;
+  }, [teachers, searchTerm, selectedDepartment, selectedClass, subjects, classes]);
 
   const fetchTeachers = async () => {
     try {
@@ -803,7 +825,10 @@ export function TeachersPage() {
           classIds: user.classIds || [],
           role: user.role,
           username: user.username,
-          acedemicYear: user.acedemicYear
+          acedemicYear: user.acedemicYear,
+          gender: user.gender || "",
+          dateOfBirth: user.dateOfBirth || "",
+          address: user.address || ""
         }));
         setTeachers(mappedTeachers);
       }
@@ -817,12 +842,13 @@ export function TeachersPage() {
 
   const fetchSubjects = async () => {
     try {
-      const response = await axios.get("https://manfess-back.onrender.com/api/subjects");
+      const response = await axios.get("https://belmon-backend.onrender.com/api/subjects");
       if (response.data.success) {
         const mappedSubjects = response.data.data.map((subj: any) => ({
           id: subj._id || subj.id,
           name: subj.name,
-          code: subj.code
+          code: subj.code,
+          department: subj.department || subj.section || ""
         }));
         setSubjects(mappedSubjects);
         console.log("📚 Subjects loaded:", mappedSubjects);
@@ -834,24 +860,16 @@ export function TeachersPage() {
 
   const fetchClasses = async () => {
     try {
-      const response = await axios.get("https://manfess-back.onrender.com/api/classes");
+      const response = await axios.get("https://belmon-backend.onrender.com/api/classes");
       if (response.data.success) {
-        console.log("📚 Raw classes from API:", response.data.data);
-
-        // Map classes with all available fields
-        const mappedClasses = response.data.data.map((cls: any) => {
-          // Log each class to see what fields are available
-          console.log("Class data:", cls);
-
-          return {
-            id: cls._id || cls.id,
-            className: cls.className || cls.name || "Unknown",
-            department: cls.department || cls.section || "",
-            cycle: cls.cycle || "",
-            acedemicYear: cls.acedemicYear || cls.academicYear || ""
-          };
-        });
-
+        const mappedClasses = response.data.data.map((cls: any) => ({
+          id: cls._id || cls.id,
+          className: cls.className || cls.name || "Unknown",
+          department: cls.department || cls.section || "",
+          cycle: cls.cycle || "",
+          acedemicYear: cls.acedemicYear || cls.academicYear || "",
+          path: cls.path || cls.type || "General"
+        }));
         setClasses(mappedClasses);
         console.log("📚 Mapped classes:", mappedClasses);
       }
@@ -886,6 +904,12 @@ export function TeachersPage() {
         return;
       }
 
+      // Validate that at least one subject is selected
+      if (teacher.subjectIds.length === 0) {
+        toast.error("Please select at least one subject");
+        return;
+      }
+
       const userData = {
         name: teacher.fullName.trim(),
         username: teacher.email.trim(),
@@ -894,7 +918,10 @@ export function TeachersPage() {
         qualification: teacher.qualification || "",
         subjectIds: teacher.subjectIds || [],
         classIds: teacher.classIds || [],
-        acedemicYear: teacher.acedemicYear
+        acedemicYear: teacher.acedemicYear,
+        gender: teacher.gender || "",
+        dateOfBirth: teacher.dateOfBirth || "",
+        address: teacher.address || ""
       };
 
       const isExisting = teacher.id && isDatabaseId(teacher.id);
@@ -970,76 +997,123 @@ export function TeachersPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="font-display text-3xl font-extrabold tracking-tight">Teachers</h1>
+          <h1 className="font-display text-3xl font-extrabold tracking-tight flex items-center gap-3">
+            <Users className="size-8 text-brand" />
+            Teachers
+          </h1>
           <p className="text-sm text-black/60 mt-1">{teachers.length} active faculty members</p>
         </div>
         {canEdit && (
           <button
             onClick={() => setShowNew(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand text-white text-sm font-semibold hover:bg-brand/90"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand text-white text-sm font-semibold hover:bg-brand/90 transition-all shadow-lg shadow-brand/20"
           >
             <Plus className="size-4" /> Add Teacher
           </button>
         )}
       </div>
 
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-black/40" />
-        <input
-          type="text"
-          placeholder="Search teachers by name, email, phone..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-stone-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand"
-        />
-        {searchTerm && (
+      {/* Filters */}
+      <div className="flex flex-wrap gap-3">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-black/40" />
+          <input
+            type="text"
+            placeholder="Search teachers..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-stone-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand"
+          />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-black/40 hover:text-black/70"
+            >
+              <X className="size-4" />
+            </button>
+          )}
+        </div>
+
+        <select
+          value={selectedDepartment}
+          onChange={(e) => setSelectedDepartment(e.target.value)}
+          className="px-4 py-2.5 rounded-xl border border-stone-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand"
+        >
+          <option value="">All Departments</option>
+          {departments.map(dept => (
+            <option key={dept} value={dept}>{dept}</option>
+          ))}
+        </select>
+
+        <select
+          value={selectedClass}
+          onChange={(e) => setSelectedClass(e.target.value)}
+          className="px-4 py-2.5 rounded-xl border border-stone-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand"
+        >
+          <option value="">All Classes</option>
+          {classOptions.map(cls => (
+            <option key={cls} value={cls}>{cls}</option>
+          ))}
+        </select>
+
+        {(selectedDepartment || selectedClass) && (
           <button
-            onClick={() => setSearchTerm("")}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-black/40 hover:text-black/70"
+            onClick={() => {
+              setSelectedDepartment("");
+              setSelectedClass("");
+            }}
+            className="px-4 py-2.5 rounded-xl border border-stone-200 text-sm hover:bg-stone-50 transition"
           >
-            <X className="size-4" />
+            Clear Filters
           </button>
         )}
       </div>
 
+      {/* Teacher Cards Grid */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredTeachers.length === 0 ? (
           <div className="col-span-full text-center py-12">
+            <GraduationCap className="size-12 mx-auto text-black/20 mb-3" />
             <p className="text-black/40">
-              {searchTerm ? `No teachers found matching "${searchTerm}"` : "No teachers found"}
+              {searchTerm || selectedDepartment || selectedClass 
+                ? `No teachers found matching your filters` 
+                : "No teachers found"}
             </p>
           </div>
         ) : (
           filteredTeachers.map((t) => {
+            // Get ALL subjects for this teacher (multiple subjects)
             const teacherSubjects = subjects.filter((s) => t.subjectIds.includes(s.id));
             const teacherClasses = classes.filter((c) => t.classIds.includes(c.id));
+            
             return (
-              <div key={t.id} className="bg-white rounded-2xl border border-stone-200 p-5 hover:shadow-md transition-shadow">
+              <div key={t.id} className="bg-white rounded-2xl border border-stone-200 p-5 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="size-12 bg-brand/10 text-brand grid place-items-center rounded-xl font-bold font-display">
+                  <div className="size-12 bg-brand/10 text-brand grid place-items-center rounded-xl font-bold font-display text-lg">
                     {t.fullName.split(" ").map((p) => p[0]).slice(0, 2).join("")}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="font-display font-bold truncate">{t.fullName}</div>
+                    <div className="font-display font-bold truncate text-lg">{t.fullName}</div>
                     <div className="text-xs text-black/50">{t.qualification || "No qualification"}</div>
                   </div>
                   {canEdit && (
                     <div className="flex gap-1">
                       <button
                         onClick={() => setEditing(t)}
-                        className="size-7 grid place-items-center rounded-lg hover:bg-stone-100 text-black/60"
+                        className="size-7 grid place-items-center rounded-lg hover:bg-stone-100 text-black/60 transition"
                       >
                         <Pencil className="size-3" />
                       </button>
                       <button
                         onClick={() => remove(t.id)}
-                        className="size-7 grid place-items-center rounded-lg hover:bg-red-50 text-red-600"
+                        className="size-7 grid place-items-center rounded-lg hover:bg-red-50 text-red-600 transition"
                       >
                         <Trash2 className="size-3" />
                       </button>
                     </div>
                   )}
                 </div>
+                
                 <div className="space-y-2 text-xs text-black/60">
                   <div className="flex items-center gap-2">
                     <Mail className="size-3.5" /> {t.email}
@@ -1048,11 +1122,11 @@ export function TeachersPage() {
                     <Phone className="size-3.5" /> {t.phone}
                   </div>
                   <div className="flex items-start gap-2">
-                    <BookOpen className="size-3.5 mt-0.5" />
+                    <BookOpen className="size-3.5 mt-0.5 flex-shrink-0" />
                     <div className="flex flex-wrap gap-1">
                       {teacherSubjects.map((s) => (
                         <span key={s.id} className="text-[10px] bg-brand/10 text-brand px-2 py-0.5 rounded-full font-bold">
-                          {s.code}
+                          {s.code} - {s.name}
                         </span>
                       ))}
                       {teacherSubjects.length === 0 && (
@@ -1061,12 +1135,16 @@ export function TeachersPage() {
                     </div>
                   </div>
                 </div>
+                
                 <div className="mt-4 pt-4 border-t border-stone-100">
-                  <div className="text-[10px] uppercase tracking-widest font-bold text-black/40 mb-2">Assigned Classes</div>
+                  <div className="text-[10px] uppercase tracking-widest font-bold text-black/40 mb-2 flex items-center gap-2">
+                    <Users className="size-3" /> Assigned Classes
+                  </div>
                   <div className="flex flex-wrap gap-1">
                     {teacherClasses.map((c) => (
                       <span key={c.id} className="text-[10px] bg-stone-100 px-2 py-1 rounded-full font-medium">
                         {c.className}
+                        {c.department && ` (${c.department})`}
                       </span>
                     ))}
                     {teacherClasses.length === 0 && (
@@ -1074,6 +1152,15 @@ export function TeachersPage() {
                     )}
                   </div>
                 </div>
+
+                {/* Academic Year Badge */}
+                {t.acedemicYear && (
+                  <div className="mt-3 pt-3 border-t border-stone-100">
+                    <span className="text-[10px] bg-stone-100 px-2 py-1 rounded-full text-black/60">
+                      📅 {t.acedemicYear}
+                    </span>
+                  </div>
+                )}
               </div>
             );
           })
@@ -1091,7 +1178,10 @@ export function TeachersPage() {
             subjectIds: [],
             classIds: [],
             role: "teacher",
-            acedemicYear: "2024-2025"
+            acedemicYear: "2024-2025",
+            gender: "",
+            dateOfBirth: "",
+            address: ""
           }}
           subjects={subjects}
           classes={classes}
@@ -1106,7 +1196,9 @@ export function TeachersPage() {
   );
 }
 
-// Teacher Dialog Component
+// ============================================
+// TEACHER DIALOG COMPONENT
+// ============================================
 function TeacherDialog({
   initial,
   subjects,
@@ -1128,12 +1220,13 @@ function TeacherDialog({
   const set = <K extends keyof Teacher>(k: K, v: Teacher[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
 
+  // Toggle subject selection (MULTIPLE subjects allowed)
   const toggleSubject = (id: string) => {
-    if (form.subjectIds.includes(id)) {
-      set("subjectIds", []);
-    } else {
-      set("subjectIds", [id]);
-    }
+    const current = form.subjectIds;
+    const updated = current.includes(id)
+      ? current.filter((x: string) => x !== id)
+      : [...current, id];
+    set("subjectIds", updated);
   };
 
   const toggleClass = (id: string) => {
@@ -1170,6 +1263,10 @@ function TeacherDialog({
       toast.error("Academic year is required");
       return;
     }
+    if (form.subjectIds.length === 0) {
+      toast.error("Please select at least one subject");
+      return;
+    }
 
     setSaving(true);
     try {
@@ -1180,10 +1277,11 @@ function TeacherDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 grid place-items-center p-4" onClick={onCancel}>
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm grid place-items-center p-4" onClick={onCancel}>
       <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <h3 className="font-display font-bold text-xl mb-5">
-          {initial.fullName ? "Edit Teacher" : "Add Teacher"}
+        <h3 className="font-display font-bold text-xl mb-5 flex items-center gap-3">
+          <Users className="size-6 text-brand" />
+          {initial.fullName ? "Edit Teacher" : "Add New Teacher"}
         </h3>
 
         <div className="grid sm:grid-cols-2 gap-4">
@@ -1192,6 +1290,7 @@ function TeacherDialog({
               value={form.fullName}
               onChange={(e) => set("fullName", e.target.value)}
               className={inputCls}
+              placeholder="Enter full name"
               required
             />
           </Field>
@@ -1200,6 +1299,7 @@ function TeacherDialog({
               value={form.qualification}
               onChange={(e) => set("qualification", e.target.value)}
               className={inputCls}
+              placeholder="e.g., BSc Mathematics"
             />
           </Field>
           <Field label="Username*">
@@ -1240,14 +1340,43 @@ function TeacherDialog({
               <option value="bursar">Bursar</option>
             </select>
           </Field>
+          <Field label="Gender">
+            <select
+              value={form.gender || ""}
+              onChange={(e) => set("gender", e.target.value)}
+              className={inputCls}
+            >
+              <option value="">Select Gender</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+            </select>
+          </Field>
+          <Field label="Date of Birth">
+            <input
+              type="date"
+              value={form.dateOfBirth || ""}
+              onChange={(e) => set("dateOfBirth", e.target.value)}
+              className={inputCls}
+            />
+          </Field>
+          <Field label="Address">
+            <input
+              value={form.address || ""}
+              onChange={(e) => set("address", e.target.value)}
+              className={inputCls}
+              placeholder="Residential address"
+            />
+          </Field>
         </div>
 
-        {/* Subjects Section */}
+        {/* Subjects Section - MULTIPLE SELECTION */}
         <div className="mt-4">
           <div className="flex items-center justify-between mb-2">
-            <div className="text-[10px] uppercase tracking-widest font-bold text-black/50">Subjects (Select One)</div>
+            <div className="text-[10px] uppercase tracking-widest font-bold text-black/50 flex items-center gap-2">
+              <BookOpen className="size-3" /> Subjects (Select Multiple)
+            </div>
             <div className="text-xs text-brand font-bold">
-              {form.subjectIds.length === 1 ? '1 selected' : 'None selected'}
+              {form.subjectIds.length} selected
             </div>
           </div>
 
@@ -1273,31 +1402,32 @@ function TeacherDialog({
                     key={s.id}
                     type="button"
                     onClick={() => toggleSubject(s.id)}
-                    className={`text-xs px-3 py-1.5 rounded-full font-bold border transition-all duration-200 ${isSelected
-                      ? "bg-brand text-white border-brand shadow-md shadow-brand/20 scale-105"
-                      : "border-stone-200 text-black/60 hover:bg-stone-50 hover:border-brand/50"
-                      }`}
+                    className={`text-xs px-3 py-1.5 rounded-full font-bold border transition-all duration-200 ${
+                      isSelected
+                        ? "bg-brand text-white border-brand shadow-md shadow-brand/20 scale-105"
+                        : "border-stone-200 text-black/60 hover:bg-stone-50 hover:border-brand/50"
+                    }`}
                   >
                     {s.code} · {s.name}
-                    {isSelected && (
-                      <span className="ml-1 inline-block">✓</span>
-                    )}
+                    {isSelected && <span className="ml-1 inline-block">✓</span>}
                   </button>
                 );
               })
             )}
           </div>
           <div className="text-xs text-black/40 mt-1">
-            {form.subjectIds.length === 1
-              ? `Selected: ${subjects.find(s => s.id === form.subjectIds[0])?.name || ''}`
-              : 'Click a subject to select it'}
+            {form.subjectIds.length === 0
+              ? 'Click subjects to select them (multiple allowed)'
+              : `${form.subjectIds.length} subject${form.subjectIds.length !== 1 ? 's' : ''} selected`}
           </div>
         </div>
 
         {/* Classes Section */}
         <div className="mt-4">
           <div className="flex items-center justify-between mb-2">
-            <div className="text-[10px] uppercase tracking-widest font-bold text-black/50">Classes (Select Multiple)</div>
+            <div className="text-[10px] uppercase tracking-widest font-bold text-black/50 flex items-center gap-2">
+              <Users className="size-3" /> Classes (Select Multiple)
+            </div>
             <div className="text-xs text-brand font-bold">
               {form.classIds.length} selected
             </div>
@@ -1320,26 +1450,26 @@ function TeacherDialog({
             ) : (
               filteredClasses.map((c) => {
                 const isSelected = form.classIds.includes(c.id);
-                // Display class with department if available
-                // alert(c.id)
                 let displayName = c.className;
                 if (c.department) {
                   displayName = `${c.className} (${c.department})`;
+                }
+                if (c.path) {
+                  displayName = `${displayName} [${c.path}]`;
                 }
                 return (
                   <button
                     key={c.id}
                     type="button"
                     onClick={() => toggleClass(c.id)}
-                    className={`text-xs px-3 py-1.5 rounded-full font-bold border transition-all duration-200 ${isSelected
-                      ? "bg-brand text-white border-brand shadow-md shadow-brand/20"
-                      : "border-stone-200 text-black/60 hover:bg-stone-50 hover:border-brand/50"
-                      }`}
+                    className={`text-xs px-3 py-1.5 rounded-full font-bold border transition-all duration-200 ${
+                      isSelected
+                        ? "bg-brand text-white border-brand shadow-md shadow-brand/20"
+                        : "border-stone-200 text-black/60 hover:bg-stone-50 hover:border-brand/50"
+                    }`}
                   >
                     {displayName}
-                    {isSelected && (
-                      <span className="ml-1 inline-block">✓</span>
-                    )}
+                    {isSelected && <span className="ml-1 inline-block">✓</span>}
                   </button>
                 );
               })
@@ -1352,20 +1482,27 @@ function TeacherDialog({
           </div>
         </div>
 
-        <div className="flex justify-end gap-2 mt-6">
+        <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-stone-100">
           <button
             onClick={onCancel}
-            className="px-4 py-2.5 rounded-xl border border-stone-200 text-sm font-semibold hover:bg-stone-50"
+            className="px-4 py-2.5 rounded-xl border border-stone-200 text-sm font-semibold hover:bg-stone-50 transition"
             disabled={saving}
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
-            className="px-4 py-2.5 rounded-xl bg-brand text-white text-sm font-semibold hover:bg-brand/90 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2.5 rounded-xl bg-brand text-white text-sm font-semibold hover:bg-brand/90 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-brand/20"
             disabled={saving}
           >
-            {saving ? "Saving..." : "Save Teacher"}
+            {saving ? (
+              <span className="flex items-center gap-2">
+                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Saving...
+              </span>
+            ) : (
+              "Save Teacher"
+            )}
           </button>
         </div>
       </div>
@@ -1373,7 +1510,7 @@ function TeacherDialog({
   );
 }
 
-const inputCls = "w-full px-3 py-2 rounded-lg border border-stone-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand";
+const inputCls = "w-full px-3 py-2 rounded-lg border border-stone-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand transition";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (

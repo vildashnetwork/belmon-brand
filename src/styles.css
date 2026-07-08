@@ -4,14 +4,33 @@
 
 @custom-variant dark (&:is(.dark *));
 
-@theme {
+/* @theme {
   --color-brand: #0F7A35;
   --color-brand-soft: #E7F4EC;
   --color-ink: #121212;
   --font-sans: 'Inter', system-ui, sans-serif;
   --font-display: 'Sora', system-ui, sans-serif;
+} */
+@theme {
+  --color-brand: #4A90D9;           /* Primary blue */
+  --color-brand-soft: #EBF3FA;      /* Light blue background */
+  --color-brand-light: #7BB3E8;     /* Lighter blue for accents */
+  --color-brand-dark: #2C5F8A;      /* Darker blue for contrast */
+  --color-grey-50: #F8F9FA;         /* Lightest grey */
+  --color-grey-100: #F0F1F3;        /* Very light grey */
+  --color-grey-200: #E2E4E8;        /* Light grey */
+  --color-grey-300: #C5C8CD;        /* Medium-light grey */
+  --color-grey-400: #A8ACB3;        /* Medium grey */
+  --color-grey-500: #8B9098;        /* Medium-dark grey */
+  --color-grey-600: #6E737A;        /* Dark grey */
+  --color-grey-700: #51565C;        /* Darker grey */
+  --color-grey-800: #34393E;        /* Very dark grey */
+  --color-grey-900: #1A1D21;        /* Near black */
+  --color-ink: #1A1D21;             /* Dark grey/almost black for text */
+  --color-background: #F8F9FA;      /* Light grey background */
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-display: 'Sora', system-ui, sans-serif;
 }
-
 /*
  * Design system definition.
  *

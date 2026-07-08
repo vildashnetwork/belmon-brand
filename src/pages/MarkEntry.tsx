@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import axios from "axios";
 import { currentUser } from "@/lib/auth";
 
-const API_BASE = "https://manfess-back.onrender.com/api";
+const API_BASE = "https://belmon-backend.onrender.com/api";
 
 interface Student {
   id: string;

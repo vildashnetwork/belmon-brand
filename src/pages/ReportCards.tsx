@@ -7,7 +7,7 @@ import { currentUser } from "@/lib/auth";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas-pro";
 
-const API_BASE = "https://manfess-back.onrender.com/api";
+const API_BASE = "https://belmon-backend.onrender.com/api";
 
 interface Student {
   id: string;
@@ -70,6 +70,12 @@ interface Teacher {
 
 // Term definitions for Cameroon school system
 const TERMS = [
+    {
+    id: "Holiday",
+    label: "Holiday Classes",
+    sequences: ["1st seq"],
+    displayColumns: ["marks"]
+  },
   {
     id: "first",
     label: "First Term",
@@ -670,10 +676,10 @@ export function ReportCardsIndex() {
             Ministère des Enseignements Secondaires
           </div>
           <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
-            <div style="width:46px;height:46px;border-radius:12px;background:#16a34a;display:flex;align-items:center;justify-content:center;margin-bottom:2px;">
+            <div style="width:46px;height:46px;border-radius:12px;background:#7BB3E8;display:flex;align-items:center;justify-content:center;margin-bottom:2px;">
               <svg viewBox="0 0 24 24" width="24" height="24" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M12 3 1 8.5 12 14l8-4.09V17h1.5V8.5L12 3Zm0 8.9L4.5 8.5 12 4.9l7.5 3.6L12 11.9Z"/><path d="M6 12.18v3.7c0 1.9 2.69 3.62 6 3.62s6-1.72 6-3.62v-3.7l-6 2.9-6-2.9Z"/></svg>
             </div>
-            <div style="font-size:15px;font-weight:800;letter-spacing:-0.01em;text-transform:none;">MANFESS EVENING SCHOOL</div>
+            <div style="font-size:15px;font-weight:800;letter-spacing:-0.01em;text-transform:none;">BELMON  BILINGUAL HIGH SCHOOL</div>
             <div style="font-size:8.5px;color:#78716c;font-weight:400;text-transform:none;">P.O. Box 1234, Yaoundé · MINESEC accredited</div>
           </div>
           <div style="text-align:right;line-height:1.5;">
@@ -799,7 +805,7 @@ export function ReportCardsIndex() {
         </div>
 
         <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid #d6d3d1;padding-top:8px;font-size:8.5px;color:#a8a29e;">
-          <div>Issued by MAMS · MANFESS Evening School · ${new Date().toLocaleDateString()}</div>
+          <div>Issued by MAMS · BELMON  BILINGUAL HIGH SCHOOL · ${new Date().toLocaleDateString()}</div>
           <div style="font-family:monospace;">VERIF#${data.student.id.toUpperCase()}-${ctx.termId.toUpperCase()}</div>
         </div>
       </div>

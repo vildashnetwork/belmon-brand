@@ -5,7 +5,7 @@ import axios from "axios";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 
-const API_BASE = "https://manfess-back.onrender.com/api";
+const API_BASE = "https://belmon-backend.onrender.com/api";
 
 interface Student {
   id: string;

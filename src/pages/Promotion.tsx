@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import axios from "axios";
 import html2canvas from "html2canvas-pro";
 
-const API_BASE = "https://manfess-back.onrender.com/api";
+const API_BASE = "https://belmon-backend.onrender.com/api";
 
 interface Student {
   id: string;
@@ -350,7 +350,7 @@ export function PromotionPage() {
       let htmlContent = `
         <div style="font-family: Arial, sans-serif; color: #121212;">
           <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px;">
-            <h1 style="font-size: 20px; margin: 0;">MANFESS Evening School</h1>
+            <h1 style="font-size: 20px; margin: 0;">BELMON Evening School</h1>
             <p style="font-size: 12px; color: #666; margin: 5px 0;">Class Statistics Report</p>
           </div>
           
@@ -474,7 +474,7 @@ export function PromotionPage() {
               <span>Date: ______________________________</span>
             </div>
             <div style="font-size: 9px; color: #666; text-align: center; margin-top: 10px; padding-top: 8px; border-top: 1px solid #ddd;">
-              Generated: ${new Date().toLocaleString()} | © 2026 MANFESS Evening School
+              Generated: ${new Date().toLocaleString()} | © 2026 BELMON Evening School
             </div>
           </div>
         </div>

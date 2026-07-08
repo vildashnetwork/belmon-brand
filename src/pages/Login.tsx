@@ -4,7 +4,7 @@ import { GraduationCap, Shield, Wallet, BookOpen, UserRound, Loader2 } from "luc
 import { toast } from "sonner";
 import axios from "axios";
 
-const API_BASE = "https://manfess-back.onrender.com/api";
+const API_BASE = "https://belmon-backend.onrender.com/api";
 
 // Types
 interface User {
@@ -107,12 +107,12 @@ export function LoginPage() {
         </Link>
         <div className="relative">
           <h2 className="font-display text-4xl font-extrabold leading-tight mb-4">
-            Welcome back to <span className="text-brand">MANFESS</span>.
+            Welcome back to <span className="text-brand">BELMON</span>.
           </h2>
           <p className="text-white/60 max-w-md">Sign in to your portal. Marks, reports and fees — all where you left them.</p>
 
         </div>
-        <p className="relative text-xs text-white/30">© 2026 MANFESS Evening School</p>
+        <p className="relative text-xs text-white/30">© 2026 BELMON Evening School</p>
       </div>
 
       <div className="flex items-center justify-center p-6 md:p-12">

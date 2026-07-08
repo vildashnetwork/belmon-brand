@@ -59,8 +59,8 @@ export function AppLayout() {
             <GraduationCap className="size-4 text-white" />
           </div>
           <div>
-            <div className="font-display font-bold uppercase tracking-tight">MAMS</div>
-            <div className="text-[10px] text-white/40 uppercase tracking-widest">MANFESS</div>
+            <div className="font-display font-bold uppercase tracking-tight">BELMON</div>
+            <div className="text-[10px] text-white/40 uppercase tracking-widest">BELMON  BILINGUAL HIGH SCHOOL</div>
           </div>
         </div>
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
@@ -99,7 +99,7 @@ export function AppLayout() {
       <main className="flex-1 min-w-0">
         <header className="sticky top-0 z-30 h-16 bg-white border-b border-stone-200 px-6 lg:px-8 flex items-center justify-between">
           <div className="pl-10 lg:pl-0">
-            <div className="text-xs text-black/40 font-medium">MANFESS Evening School · 2024/25</div>
+            <div className="text-xs text-black/40 font-medium">BELMON  BILINGUAL HIGH SCHOOL· 2026/2027</div>
             <div className="text-sm font-semibold">{getPageTitle(pathname)}</div>
           </div>
           <div className="flex items-center gap-3">

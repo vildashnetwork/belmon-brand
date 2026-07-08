@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import axios from "axios";
 import { exportElementsToPdf } from "@/lib/pdf-export";
 
-const API_BASE = "https://manfess-back.onrender.com/api";
+const API_BASE = "https://belmon-backend.onrender.com/api";
 
 // Term definitions for Cameroon school system
 const TERMS = [
@@ -332,7 +332,7 @@ function ReportCardCard({ data, cls, term, sequences }: { data: any; cls: any; t
             <div className="size-12 bg-brand rounded-xl grid place-items-center mb-1">
               <GraduationCap className="size-6 text-white" />
             </div>
-            <div className="font-display text-base font-extrabold tracking-tight">MANFESS EVENING SCHOOL</div>
+            <div className="font-display text-base font-extrabold tracking-tight">BELMON  BILINGUAL HIGH SCHOOL</div>
             <div className="text-[9px] text-black/60 font-normal">P.O. Box 1234, Yaoundé · MINESEC accredited</div>
           </div>
           <div>
@@ -465,7 +465,7 @@ function ReportCardCard({ data, cls, term, sequences }: { data: any; cls: any; t
         </div>
 
         <div className="mt-6 pt-3 border-t border-stone-300 flex items-center justify-between text-[10px] text-black/40">
-          <div>Issued by MAMS · MANFESS Evening School · {new Date().toLocaleDateString()}</div>
+          <div>Issued by BELMON · BELMON  BILINGUAL HIGH SCHOOL · {new Date().toLocaleDateString()}</div>
           <div className="font-mono">VERIF#{data.student.id.toUpperCase()}-{term.id.toUpperCase()}</div>
         </div>
       </div>
