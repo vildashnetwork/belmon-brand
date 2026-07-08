@@ -74,7 +74,7 @@ export function Landing() {
       <footer className="bg-[#121212] text-white/40 py-10">
         <div className="max-w-7xl mx-auto px-8 flex justify-between items-center">
           <span className="text-white font-display font-bold tracking-tight uppercase">BELMON</span>
-          <p className="text-sm">© 2026 BELMON Evening School</p>
+          <p className="text-sm">© 2026 BELMON BILINGUAL HIGH SCHOOL</p>
         </div>
       </footer>
     </div>
