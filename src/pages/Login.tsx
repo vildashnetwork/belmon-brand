@@ -103,7 +103,7 @@ export function LoginPage() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(15,122,53,0.25),transparent_60%)]" />
         <Link to="/" className="relative flex items-center gap-2">
           <div className="size-10 bg-brand rounded-lg grid place-items-center"><GraduationCap className="size-5 text-white" /></div>
-          <span className="font-display text-xl font-bold tracking-tight uppercase">MAMS</span>
+          <span className="font-display text-xl font-bold tracking-tight uppercase">BELMON</span>
         </Link>
         <div className="relative">
           <h2 className="font-display text-4xl font-extrabold leading-tight mb-4">
