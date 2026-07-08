@@ -695,7 +695,7 @@ export function ReportCardsIndex() {
 
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;font-size:11px;margin-bottom:16px;">
           <div style="border:1px solid #d6d3d1;border-radius:8px;padding:6px 10px;"><div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#78716c;">Student</div><div style="font-size:12px;font-weight:600;margin-top:2px;">${data.student.fullName}</div></div>
-          <div style="border:1px solid #d6d3d1;border-radius:8px;padding:6px 10px;"><div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#78716c;">Admission №</div><div style="font-size:12px;font-weight:600;margin-top:2px;">${data.student.admissionNumber || "N/A"}</div></div>
+
           <div style="border:1px solid #d6d3d1;border-radius:8px;padding:6px 10px;"><div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#78716c;">Class</div><div style="font-size:12px;font-weight:600;margin-top:2px;">${ctx.selectedClass?.className || ""}</div></div>
           <div style="border:1px solid #d6d3d1;border-radius:8px;padding:6px 10px;"><div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#78716c;">Section</div><div style="font-size:12px;font-weight:600;margin-top:2px;">${data.student.department}</div></div>
           <div style="border:1px solid #d6d3d1;border-radius:8px;padding:6px 10px;"><div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#78716c;">Sex</div><div style="font-size:12px;font-weight:600;margin-top:2px;">${data.student.gender === "male" ? "Male" : "Female"}</div></div>
@@ -758,21 +758,18 @@ export function ReportCardsIndex() {
 
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;font-size:11px;">
           <div style="border:1px solid #d6d3d1;border-radius:8px;padding:6px 10px;">
-            <div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#78716c;">Conduite</div>
-            <div style="font-size:12px;font-weight:600;margin-top:2px;">Bonne</div>
+            <div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#78716c;">Conducts</div>
+            <div style="font-size:12px;font-weight:600;margin-top:2px;">Good</div>
           </div>
           <div style="border:1px solid #d6d3d1;border-radius:8px;padding:6px 10px;">
             <div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#78716c;">Discipline</div>
-            <div style="font-size:12px;font-weight:600;margin-top:2px;">Satisfaisante</div>
+            <div style="font-size:12px;font-weight:600;margin-top:2px;">Satisfactory</div>
           </div>
           <div style="border:1px solid #d6d3d1;border-radius:8px;padding:6px 10px;">
             <div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#78716c;">Absences (h)</div>
             <div style="font-size:12px;font-weight:600;margin-top:2px;">0</div>
           </div>
-          <div style="border:1px solid #d6d3d1;border-radius:8px;padding:6px 10px;">
-            <div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#78716c;">Retards</div>
-            <div style="font-size:12px;font-weight:600;margin-top:2px;">0</div>
-          </div>
+     
         </div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:24px;">
@@ -805,7 +802,7 @@ export function ReportCardsIndex() {
         </div>
 
         <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid #d6d3d1;padding-top:8px;font-size:8.5px;color:#a8a29e;">
-          <div>Issued by MAMS · BELMON  BILINGUAL HIGH SCHOOL · ${new Date().toLocaleDateString()}</div>
+          <div>Issued by · BELMON  BILINGUAL HIGH SCHOOL · ${new Date().toLocaleDateString()}</div>
           <div style="font-family:monospace;">VERIF#${data.student.id.toUpperCase()}-${ctx.termId.toUpperCase()}</div>
         </div>
       </div>
