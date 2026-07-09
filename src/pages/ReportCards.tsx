@@ -1,3 +1,4 @@
+
 import { useEffect, useMemo, useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { FileText, ArrowRight, Search, Printer, FileSpreadsheet, Calendar, Award, Download } from "lucide-react";
@@ -707,15 +708,15 @@ export function ReportCardsIndex() {
         <table style="width:100%;border-collapse:collapse;font-size:10px;border:1px solid #121212;margin-bottom:16px;">
           <thead>
             <tr style="background:#121212;color:#fff;">
-              <th style="padding:5px 6px;border:1px solid #121212;font-weight:700;text-align:center;font-size:10px;">Discipline / Subject</th>
+              <th style="padding:5px 6px;border:1px solid #121212;font-weight:700;text-align:center;font-size:10px;">Subject</th>
               ${seqHeaders}
               <th style="padding:5px 6px;border:1px solid #121212;font-weight:700;text-align:center;font-size:10px;">Avg</th>
               <th style="padding:5px 6px;border:1px solid #121212;font-weight:700;text-align:center;font-size:10px;">Coef</th>
               <th style="padding:5px 6px;border:1px solid #121212;font-weight:700;text-align:center;font-size:10px;">Total</th>
           
               <th style="padding:5px 6px;border:1px solid #121212;font-weight:700;text-align:center;font-size:10px;">Grade</th>
-              <th style="padding:5px 6px;border:1px solid #121212;font-weight:700;text-align:center;font-size:10px;">Appreciation</th>
-              <th style="padding:5px 6px;border:1px solid #121212;font-weight:700;text-align:center;font-size:10px;">Enseignant</th>
+              <th style="padding:5px 6px;border:1px solid #121212;font-weight:700;text-align:center;font-size:10px;">Remark</th>
+              <th style="padding:5px 6px;border:1px solid #121212;font-weight:700;text-align:center;font-size:10px;">Teacher</th>
             </tr>
           </thead>
           <tbody>
@@ -735,23 +736,23 @@ export function ReportCardsIndex() {
 
         <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:12px;">
           <div style="border:1px solid #d6d3d1;border-radius:8px;padding:8px 10px;background:rgba(22,163,74,0.06);border-color:rgba(22,163,74,0.3);">
-            <div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#78716c;">Moyenne / 20</div>
+            <div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#78716c;">Average / 20</div>
             <div style="font-size:15px;font-weight:800;margin-top:2px;color:#16a34a;">${avg.toFixed(2)}</div>
           </div>
           <div style="border:1px solid #d6d3d1;border-radius:8px;padding:8px 10px;">
-            <div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#78716c;">Moy. Classe</div>
+            <div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#78716c;">Class Avg</div>
             <div style="font-size:15px;font-weight:800;margin-top:2px;">${ctx.classAvg.toFixed(2)}</div>
           </div>
           <div style="border:1px solid #d6d3d1;border-radius:8px;padding:8px 10px;">
-            <div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#78716c;">Rang</div>
+            <div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#78716c;">Position</div>
             <div style="font-size:15px;font-weight:800;margin-top:2px;">${data.rank ? `${ordinal(data.rank)} / ${ctx.classSize}` : "—"}</div>
           </div>
           <div style="border:1px solid #d6d3d1;border-radius:8px;padding:8px 10px;">
-            <div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#78716c;">Mention</div>
+            <div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#78716c;">Remark</div>
             <div style="font-size:15px;font-weight:800;margin-top:2px;">${gradeInfo.remark}</div>
           </div>
           <div style="border:1px solid #d6d3d1;border-radius:8px;padding:8px 10px;">
-            <div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#78716c;">Décision</div>
+            <div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#78716c;">Decision</div>
             <div style="font-size:15px;font-weight:800;margin-top:2px;color:${statusPass ? '#16a34a' : '#dc2626'};">${statusText}</div>
           </div>
         </div>
