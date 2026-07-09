@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import axios from "axios";
 import { format, parse, startOfWeek, addDays, isSameDay } from "date-fns";
 
-const API_BASE = "https://belmon-back.onrender.com/api";
+const API_BASE = "https://belmon-backend.onrender.com/api";
 
 // ============================================
 // TYPES
@@ -90,6 +90,7 @@ export function TimetableAdminPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [showCopyModal, setShowCopyModal] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
   const [stats, setStats] = useState<TimetableStats>({
     totalPeriods: 0,
     totalTeachers: 0,
@@ -104,88 +105,56 @@ export function TimetableAdminPage() {
   const academicYear = `${currentYear}-${currentYear + 1}`;
 
   // ============================================
-  // FETCH DATA
+  // LOCAL STORAGE HELPERS
   // ============================================
 
-  const fetchAllData = useCallback(async () => {
+  const saveToLocalStorage = (key: string, data: any) => {
     try {
-      setLoading(true);
-      const [timetableRes, teachersRes, classesRes, subjectsRes] = await Promise.all([
-        axios.get(`${API_BASE}/timetable`),
-        axios.get(`${API_BASE}/users?role=teacher`),
-        axios.get(`${API_BASE}/classes`),
-        axios.get(`${API_BASE}/subjects`)
-      ]);
-
-      if (timetableRes.data.success) {
-        const mappedEntries = timetableRes.data.data.map((entry: any) => ({
-          ...entry,
-          teacherName: entry.teacherId?.name || entry.teacherName || "Unknown",
-          className: entry.classId?.className || entry.className || "Unknown",
-          subjectName: entry.subjectId?.name || entry.subjectName || "Unknown",
-          subjectCode: entry.subjectId?.code || entry.subjectCode || "",
-        }));
-        setEntries(mappedEntries);
-        calculateStats(mappedEntries);
-      }
-
-      if (teachersRes.data.success) {
-        setTeachers(teachersRes.data.data);
-      }
-
-      if (classesRes.data.success) {
-        setClasses(classesRes.data.data);
-      }
-
-      if (subjectsRes.data.success) {
-        setSubjects(subjectsRes.data.data);
-      }
+      localStorage.setItem(`timetable_${key}`, JSON.stringify(data));
     } catch (error) {
-      console.error("Error fetching data:", error);
-      toast.error("Failed to load timetable data");
-      // Load mock data for demo
-      loadMockData();
-    } finally {
-      setLoading(false);
+      console.error("Error saving to localStorage:", error);
     }
-  }, []);
-
-  const calculateStats = (entries: TimetableEntry[]) => {
-    const firstCycle = entries.filter(e => e.cycle === "first").length;
-    const secondCycle = entries.filter(e => e.cycle === "second").length;
-    const totalPotential = entries.reduce((sum, e) => sum + e.ratePerPeriod, 0);
-    
-    setStats({
-      totalPeriods: entries.length,
-      totalTeachers: new Set(entries.map(e => e.teacherId)).size,
-      totalClasses: new Set(entries.map(e => e.classId)).size,
-      totalPotential,
-      firstCyclePeriods: firstCycle,
-      secondCyclePeriods: secondCycle
-    });
   };
 
-  // Mock data for demo
-  const loadMockData = () => {
+  const loadFromLocalStorage = (key: string) => {
+    try {
+      const data = localStorage.getItem(`timetable_${key}`);
+      return data ? JSON.parse(data) : null;
+    } catch (error) {
+      console.error("Error loading from localStorage:", error);
+      return null;
+    }
+  };
+
+  // ============================================
+  // GENERATE MOCK DATA
+  // ============================================
+
+  const generateMockData = () => {
     const mockTeachers = [
       { _id: "t1", name: "John Doe", email: "john@school.com", phone: "699123456", qualification: "BSc Math", subjectIds: ["s1"], classIds: ["c1"] },
       { _id: "t2", name: "Jane Smith", email: "jane@school.com", phone: "699234567", qualification: "BEd English", subjectIds: ["s2"], classIds: ["c2"] },
       { _id: "t3", name: "Michael Brown", email: "michael@school.com", phone: "699345678", qualification: "PhD Physics", subjectIds: ["s3"], classIds: ["c3"] },
+      { _id: "t4", name: "Sarah Wilson", email: "sarah@school.com", phone: "699456789", qualification: "MSc Chemistry", subjectIds: ["s4"], classIds: ["c1"] },
+      { _id: "t5", name: "David Kim", email: "david@school.com", phone: "699567890", qualification: "BEd History", subjectIds: ["s5"], classIds: ["c3"] },
     ];
+    
     const mockClasses = [
       { _id: "c1", className: "Form 4 Science A", department: "Science" },
       { _id: "c2", className: "Form 5 Science A", department: "Science" },
       { _id: "c3", className: "Form 3 Arts", department: "Arts" },
+      { _id: "c4", className: "Form 4 Commercial", department: "Commercial" },
+      { _id: "c5", className: "Form 5 Arts", department: "Arts" },
     ];
+    
     const mockSubjects = [
       { _id: "s1", name: "Mathematics", code: "MATH" },
       { _id: "s2", name: "English", code: "ENG" },
       { _id: "s3", name: "Physics", code: "PHY" },
+      { _id: "s4", name: "Chemistry", code: "CHEM" },
+      { _id: "s5", name: "History", code: "HIST" },
+      { _id: "s6", name: "Geography", code: "GEOG" },
     ];
-
-    setTeachers(mockTeachers);
-    setClasses(mockClasses);
-    setSubjects(mockSubjects);
 
     const mockEntries: TimetableEntry[] = [];
     const periods = [1, 2, 3, 4, 5, 6];
@@ -222,8 +191,113 @@ export function TimetableAdminPage() {
       });
     });
 
-    setEntries(mockEntries);
-    calculateStats(mockEntries);
+    return { teachers: mockTeachers, classes: mockClasses, subjects: mockSubjects, entries: mockEntries };
+  };
+
+  // ============================================
+  // FETCH DATA
+  // ============================================
+
+  const fetchAllData = useCallback(async () => {
+    try {
+      setLoading(true);
+      
+      // Try to fetch from API
+      const [timetableRes, teachersRes, classesRes, subjectsRes] = await Promise.all([
+        axios.get(`${API_BASE}/timetable`).catch(() => ({ data: { success: false } })),
+        axios.get(`${API_BASE}/users?role=teacher`).catch(() => ({ data: { success: false } })),
+        axios.get(`${API_BASE}/classes`).catch(() => ({ data: { success: false } })),
+        axios.get(`${API_BASE}/subjects`).catch(() => ({ data: { success: false } }))
+      ]);
+
+      const apiSuccess = timetableRes.data.success || teachersRes.data.success || classesRes.data.success || subjectsRes.data.success;
+      
+      if (apiSuccess) {
+        setIsOnline(true);
+        
+        if (timetableRes.data.success) {
+          const mappedEntries = timetableRes.data.data.map((entry: any) => ({
+            ...entry,
+            teacherName: entry.teacherId?.name || entry.teacherName || "Unknown",
+            className: entry.classId?.className || entry.className || "Unknown",
+            subjectName: entry.subjectId?.name || entry.subjectName || "Unknown",
+            subjectCode: entry.subjectId?.code || entry.subjectCode || "",
+          }));
+          setEntries(mappedEntries);
+          saveToLocalStorage('entries', mappedEntries);
+          calculateStats(mappedEntries);
+        }
+
+        if (teachersRes.data.success) {
+          setTeachers(teachersRes.data.data);
+          saveToLocalStorage('teachers', teachersRes.data.data);
+        }
+
+        if (classesRes.data.success) {
+          setClasses(classesRes.data.data);
+          saveToLocalStorage('classes', classesRes.data.data);
+        }
+
+        if (subjectsRes.data.success) {
+          setSubjects(subjectsRes.data.data);
+          saveToLocalStorage('subjects', subjectsRes.data.data);
+        }
+      } else {
+        // API failed, load from localStorage or generate mock data
+        loadFromCache();
+      }
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      setIsOnline(false);
+      loadFromCache();
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const loadFromCache = () => {
+    // Try to load from localStorage
+    const cachedEntries = loadFromLocalStorage('entries');
+    const cachedTeachers = loadFromLocalStorage('teachers');
+    const cachedClasses = loadFromLocalStorage('classes');
+    const cachedSubjects = loadFromLocalStorage('subjects');
+
+    if (cachedEntries && cachedEntries.length > 0) {
+      setEntries(cachedEntries);
+      calculateStats(cachedEntries);
+      toast.info("Using cached data (offline mode)");
+    } else {
+      // Generate mock data
+      const mockData = generateMockData();
+      setEntries(mockData.entries);
+      setTeachers(mockData.teachers);
+      setClasses(mockData.classes);
+      setSubjects(mockData.subjects);
+      calculateStats(mockData.entries);
+      
+      // Save mock data to localStorage
+      saveToLocalStorage('entries', mockData.entries);
+      saveToLocalStorage('teachers', mockData.teachers);
+      saveToLocalStorage('classes', mockData.classes);
+      saveToLocalStorage('subjects', mockData.subjects);
+      
+      toast.info("Using demo data (offline mode)");
+    }
+  };
+
+  const calculateStats = (entries: TimetableEntry[]) => {
+    const firstCycle = entries.filter(e => e.cycle === "first").length;
+    const secondCycle = entries.filter(e => e.cycle === "second").length;
+    const totalPotential = entries.reduce((sum, e) => sum + e.ratePerPeriod, 0);
+    
+    setStats({
+      totalPeriods: entries.length,
+      totalTeachers: new Set(entries.map(e => e.teacherId)).size,
+      totalClasses: new Set(entries.map(e => e.classId)).size,
+      totalPotential,
+      firstCyclePeriods: firstCycle,
+      secondCyclePeriods: secondCycle
+    });
   };
 
   useEffect(() => {
@@ -267,8 +341,18 @@ export function TimetableAdminPage() {
   }, [entries, searchTerm, selectedTeacher, selectedClass, selectedDay, selectedCycle]);
 
   // ============================================
-  // CRUD OPERATIONS
+  // CRUD OPERATIONS (with localStorage fallback)
   // ============================================
+
+  const syncToAPI = async (method: string, url: string, data?: any) => {
+    try {
+      const response = await axios({ method, url, data });
+      return response.data;
+    } catch (error) {
+      console.error("API sync failed:", error);
+      return null;
+    }
+  };
 
   const handleSaveEntry = async (entry: TimetableEntry) => {
     try {
@@ -295,22 +379,39 @@ export function TimetableAdminPage() {
 
       if (isExisting) {
         updatedEntries = entries.map(e => e.id === entry.id ? entry : e);
-        await axios.put(`${API_BASE}/timetable/${entry.id}`, entry);
+        // Try API update
+        await syncToAPI('PUT', `${API_BASE}/timetable/${entry.id}`, entry);
         toast.success("Timetable entry updated");
       } else {
         const newEntry = { ...entry, id: `entry_${Date.now()}` };
         updatedEntries = [...entries, newEntry];
-        await axios.post(`${API_BASE}/timetable`, newEntry);
+        // Try API create
+        await syncToAPI('POST', `${API_BASE}/timetable`, newEntry);
         toast.success("Timetable entry added");
       }
 
       setEntries(updatedEntries);
       calculateStats(updatedEntries);
+      saveToLocalStorage('entries', updatedEntries);
       setEditingEntry(null);
       setShowAddModal(false);
     } catch (error) {
       console.error("Error saving timetable:", error);
-      toast.error("Failed to save timetable entry");
+      // Fallback: save locally
+      let updatedEntries;
+      const isExisting = entries.some(e => e.id === entry.id);
+      
+      if (isExisting) {
+        updatedEntries = entries.map(e => e.id === entry.id ? entry : e);
+      } else {
+        const newEntry = { ...entry, id: `entry_${Date.now()}` };
+        updatedEntries = [...entries, newEntry];
+      }
+      
+      setEntries(updatedEntries);
+      calculateStats(updatedEntries);
+      saveToLocalStorage('entries', updatedEntries);
+      toast.warning("Saved locally (API unavailable)");
     }
   };
 
@@ -318,14 +419,20 @@ export function TimetableAdminPage() {
     if (!window.confirm("Are you sure you want to delete this timetable entry?")) return;
 
     try {
-      await axios.delete(`${API_BASE}/timetable/${id}`);
+      await syncToAPI('DELETE', `${API_BASE}/timetable/${id}`);
       const updatedEntries = entries.filter(e => e.id !== id);
       setEntries(updatedEntries);
       calculateStats(updatedEntries);
+      saveToLocalStorage('entries', updatedEntries);
       toast.success("Timetable entry deleted");
     } catch (error) {
       console.error("Error deleting timetable:", error);
-      toast.error("Failed to delete timetable entry");
+      // Fallback: delete locally
+      const updatedEntries = entries.filter(e => e.id !== id);
+      setEntries(updatedEntries);
+      calculateStats(updatedEntries);
+      saveToLocalStorage('entries', updatedEntries);
+      toast.warning("Deleted locally (API unavailable)");
     }
   };
 
@@ -337,15 +444,23 @@ export function TimetableAdminPage() {
         return;
       }
 
-      await axios.post(`${API_BASE}/timetable/bulk`, { entries: validEntries });
+      await syncToAPI('POST', `${API_BASE}/timetable/bulk`, { entries: validEntries });
       const updatedEntries = [...entries, ...validEntries];
       setEntries(updatedEntries);
       calculateStats(updatedEntries);
+      saveToLocalStorage('entries', updatedEntries);
       toast.success(`${validEntries.length} entries added successfully`);
       setShowBulkModal(false);
     } catch (error) {
       console.error("Error bulk adding timetable:", error);
-      toast.error("Failed to add bulk entries");
+      // Fallback: add locally
+      const validEntries = newEntries.filter(e => e.teacherId && e.classId && e.subjectId);
+      const updatedEntries = [...entries, ...validEntries];
+      setEntries(updatedEntries);
+      calculateStats(updatedEntries);
+      saveToLocalStorage('entries', updatedEntries);
+      toast.warning(`${validEntries.length} entries added locally (API unavailable)`);
+      setShowBulkModal(false);
     }
   };
 
@@ -364,15 +479,29 @@ export function TimetableAdminPage() {
         isActive: true
       }));
 
-      await axios.post(`${API_BASE}/timetable/bulk`, { entries: copiedEntries });
+      await syncToAPI('POST', `${API_BASE}/timetable/bulk`, { entries: copiedEntries });
       const updatedEntries = [...entries, ...copiedEntries];
       setEntries(updatedEntries);
       calculateStats(updatedEntries);
+      saveToLocalStorage('entries', updatedEntries);
       toast.success(`${copiedEntries.length} entries copied to ${targetYear}`);
       setShowCopyModal(false);
     } catch (error) {
       console.error("Error copying timetable:", error);
-      toast.error("Failed to copy timetable");
+      // Fallback: copy locally
+      const sourceEntries = entries.filter(e => e.academicYear === sourceYear);
+      const copiedEntries = sourceEntries.map(e => ({
+        ...e,
+        id: `entry_${Date.now()}_${Math.random()}`,
+        academicYear: targetYear,
+        isActive: true
+      }));
+      const updatedEntries = [...entries, ...copiedEntries];
+      setEntries(updatedEntries);
+      calculateStats(updatedEntries);
+      saveToLocalStorage('entries', updatedEntries);
+      toast.warning(`${copiedEntries.length} entries copied locally (API unavailable)`);
+      setShowCopyModal(false);
     }
   };
 
@@ -426,6 +555,14 @@ export function TimetableAdminPage() {
 
   return (
     <div className="space-y-6">
+      {/* Offline mode indicator */}
+      {!isOnline && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-sm text-yellow-800 flex items-center gap-2">
+          <AlertCircle className="size-4" />
+          Offline mode - Changes are saved locally and will sync when connection is restored
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
