@@ -657,8 +657,7 @@ export function ReportCardsIndex() {
             <td style="padding:5px 6px;border:1px solid #d6d3d1;text-align:center;font-size:9.5px;">${sub.average > 0 ? sub.average.toFixed(2) : "-"}</td>
             <td style="padding:5px 6px;border:1px solid #d6d3d1;text-align:center;font-size:9.5px;">${sub.coefficient}</td>
             <td style="padding:5px 6px;border:1px solid #d6d3d1;text-align:center;font-weight:bold;font-size:9.5px;">${sub.average > 0 ? sub.weightedTotal.toFixed(2) : "-"}</td>
-            
-            <td style="padding:5px 6px;border:1px solid #d6d3d1;text-align:center;font-weight:bold;font-size:9.5px;">${sub.grade}</td>
+
             <td style="padding:5px 6px;border:1px solid #d6d3d1;text-align:center;font-size:9.5px;">${sub.remark}</td>
             <td style="padding:5px 6px;border:1px solid #d6d3d1;text-align:center;font-size:9.5px;">${sub.teacher || "—"}</td>
           </tr>`;
@@ -714,7 +713,6 @@ export function ReportCardsIndex() {
               <th style="padding:5px 6px;border:1px solid #121212;font-weight:700;text-align:center;font-size:10px;">Coef</th>
               <th style="padding:5px 6px;border:1px solid #121212;font-weight:700;text-align:center;font-size:10px;">Total</th>
           
-              <th style="padding:5px 6px;border:1px solid #121212;font-weight:700;text-align:center;font-size:10px;">Grade</th>
               <th style="padding:5px 6px;border:1px solid #121212;font-weight:700;text-align:center;font-size:10px;">Remark</th>
               <th style="padding:5px 6px;border:1px solid #121212;font-weight:700;text-align:center;font-size:10px;">Teacher</th>
             </tr>
