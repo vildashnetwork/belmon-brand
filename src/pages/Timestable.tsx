@@ -1222,7 +1222,7 @@ function TimetableEntryModal({
             >
               <option value="">Select Class</option>
               {classes.map(c => (
-                <option key={c._id} value={c._id}>{c.className}</option>
+                <option key={c._id} value={c._id}>{c.className + " - " + c.department}</option>
               ))}
             </select>
           </Field>
