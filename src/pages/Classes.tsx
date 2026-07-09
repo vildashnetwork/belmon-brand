@@ -676,7 +676,12 @@ function ClassDialog({
     setForm((f) => ({ ...f, [k]: v }));
 
   const classNames = ["Form 1", "Form 2", "Form 3", "Form 4", "Form 5", "Lower 6th", "Upper 6th", "Graduated"];
-  const departments = ["Science", "Arts", "Commercial", "General", "Technical"];
+  const departments = ["Science", "Arts", "Commercial", "General", "Technical",
+             "BUILDING CONSTRUCTION", "ARM","ELECTRICAL TECHNOLOGY", 
+             "MOTOR MECHANICS",
+              "WOODWORK", "AGRICULTURE", "HOME ECONOMICS", "FASHION & FABRICS",
+               "FOOD SCIENCES", "ACCOUNTING", "BUISNESS STUDIES",
+                "SECRETERIAL STUDIES"];
   const cycles = ["1st Cycle", "2nd Cycle"];
   const academicYears = ["2026-2027", "2027-2028", "2028-2029"];
 
