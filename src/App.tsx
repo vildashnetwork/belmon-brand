@@ -15,7 +15,8 @@ import { FeesPage } from "@/pages/Fees";
 import { SettingsPage } from "@/pages/Settings";
 import { PromotionPage } from "@/pages/Promotion";
 import {TimetableAdminPage} from "@/pages/Timestable";
-
+import {TeacherTimetableView} from "@/pages/Teacherstimetable";
+import {TeacherAttendancePage} from "@/pages/Salary";
 export default function App() {
   return (
     <BrowserRouter>
@@ -28,6 +29,8 @@ export default function App() {
           <Route path="teachers" element={<TeachersPage />} />
           <Route path="timetable" element={<TimetableAdminPage />} />
           <Route path="classes" element={<ClassesPage />} />
+          <Route path="teacher-timetable" element={<TeacherTimetableView />} />
+          <Route path="teacher-attendance" element={<TeacherAttendancePage />} />
           <Route path="mark-entry" element={<MarkEntry />} />
           <Route path="report-cards" element={<ReportCardsIndex />} />
           <Route path="report-cards/bulk" element={<ReportCardsBulk />} />

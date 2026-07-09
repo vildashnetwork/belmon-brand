@@ -23,6 +23,8 @@ const NAV: NavItem[] = [
   { to: "/app/teachers", label: "Teachers", icon: GraduationCap, roles: ["super_admin", "admin"] },
   { to: "/app/classes", label: "Classes & Subjects", icon: BookOpen, roles: ["super_admin", "admin"] },
   { to: "/app/mark-entry", label: "Mark Entry", icon: ClipboardEdit, roles: ["super_admin", "admin", "teacher"] },
+  { to: "/app/teacher-timetable", label: "Teacher Timetable", icon: Calendar, roles: ["teacher"] },
+  { to: "/app/teacher-attendance", label: "Teacher Attendance", icon: Calendar, roles: ["admin"] },
   { to: "/app/report-cards", label: "Report Cards", icon: FileText, roles: ["super_admin", "admin"] },
   { to: "/app/promotion", label: "Promotion", icon: ArrowUpRight, roles: ["super_admin", "admin"] },
   { to: "/app/fees", label: "Fees & Finance", icon: Wallet, roles: ["super_admin", "admin", "bursar"] },

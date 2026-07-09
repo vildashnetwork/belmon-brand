@@ -1,3 +1,5 @@
+// Timestable.tsx - Fixed version with better error handling
+
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { 
   Calendar, Clock, Users, Plus, Pencil, Trash2, Search, X, 
@@ -8,7 +10,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import axios from "axios";
-import { format, parse, startOfWeek, addDays, isSameDay } from "date-fns";
 
 const API_BASE = "https://belmon-backend.onrender.com/api";
 
@@ -74,7 +75,6 @@ interface TimetableStats {
 // ============================================
 
 export function TimetableAdminPage() {
-  // State
   const [entries, setEntries] = useState<TimetableEntry[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
@@ -91,6 +91,7 @@ export function TimetableAdminPage() {
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [showCopyModal, setShowCopyModal] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
+  const [apiError, setApiError] = useState<string | null>(null);
   const [stats, setStats] = useState<TimetableStats>({
     totalPeriods: 0,
     totalTeachers: 0,
@@ -201,49 +202,57 @@ export function TimetableAdminPage() {
   const fetchAllData = useCallback(async () => {
     try {
       setLoading(true);
+      setApiError(null);
       
       // Try to fetch from API
-      const [timetableRes, teachersRes, classesRes, subjectsRes] = await Promise.all([
-        axios.get(`${API_BASE}/timetable`).catch(() => ({ data: { success: false } })),
-        axios.get(`${API_BASE}/users?role=teacher`).catch(() => ({ data: { success: false } })),
-        axios.get(`${API_BASE}/classes`).catch(() => ({ data: { success: false } })),
-        axios.get(`${API_BASE}/subjects`).catch(() => ({ data: { success: false } }))
-      ]);
+      try {
+        const [timetableRes, teachersRes, classesRes, subjectsRes] = await Promise.all([
+          axios.get(`${API_BASE}/timetable`).catch(() => ({ data: { success: false } })),
+          axios.get(`${API_BASE}/users?role=teacher`).catch(() => ({ data: { success: false } })),
+          axios.get(`${API_BASE}/classes`).catch(() => ({ data: { success: false } })),
+          axios.get(`${API_BASE}/subjects`).catch(() => ({ data: { success: false } }))
+        ]);
 
-      const apiSuccess = timetableRes.data.success || teachersRes.data.success || classesRes.data.success || subjectsRes.data.success;
-      
-      if (apiSuccess) {
-        setIsOnline(true);
+        const apiSuccess = timetableRes.data.success || teachersRes.data.success || classesRes.data.success || subjectsRes.data.success;
         
-        if (timetableRes.data.success) {
-          const mappedEntries = timetableRes.data.data.map((entry: any) => ({
-            ...entry,
-            teacherName: entry.teacherId?.name || entry.teacherName || "Unknown",
-            className: entry.classId?.className || entry.className || "Unknown",
-            subjectName: entry.subjectId?.name || entry.subjectName || "Unknown",
-            subjectCode: entry.subjectId?.code || entry.subjectCode || "",
-          }));
-          setEntries(mappedEntries);
-          saveToLocalStorage('entries', mappedEntries);
-          calculateStats(mappedEntries);
-        }
+        if (apiSuccess) {
+          setIsOnline(true);
+          
+          if (timetableRes.data.success) {
+            const mappedEntries = timetableRes.data.data.map((entry: any) => ({
+              ...entry,
+              teacherName: entry.teacherId?.name || entry.teacherName || "Unknown",
+              className: entry.classId?.className || entry.className || "Unknown",
+              subjectName: entry.subjectId?.name || entry.subjectName || "Unknown",
+              subjectCode: entry.subjectId?.code || entry.subjectCode || "",
+            }));
+            setEntries(mappedEntries);
+            saveToLocalStorage('entries', mappedEntries);
+            calculateStats(mappedEntries);
+          }
 
-        if (teachersRes.data.success) {
-          setTeachers(teachersRes.data.data);
-          saveToLocalStorage('teachers', teachersRes.data.data);
-        }
+          if (teachersRes.data.success) {
+            setTeachers(teachersRes.data.data);
+            saveToLocalStorage('teachers', teachersRes.data.data);
+          }
 
-        if (classesRes.data.success) {
-          setClasses(classesRes.data.data);
-          saveToLocalStorage('classes', classesRes.data.data);
-        }
+          if (classesRes.data.success) {
+            setClasses(classesRes.data.data);
+            saveToLocalStorage('classes', classesRes.data.data);
+          }
 
-        if (subjectsRes.data.success) {
-          setSubjects(subjectsRes.data.data);
-          saveToLocalStorage('subjects', subjectsRes.data.data);
+          if (subjectsRes.data.success) {
+            setSubjects(subjectsRes.data.data);
+            saveToLocalStorage('subjects', subjectsRes.data.data);
+          }
+        } else {
+          // API failed, load from localStorage or generate mock data
+          loadFromCache();
         }
-      } else {
-        // API failed, load from localStorage or generate mock data
+      } catch (apiError) {
+        console.error("API Error:", apiError);
+        setApiError("API server error. Using local data.");
+        setIsOnline(false);
         loadFromCache();
       }
     } catch (error) {
@@ -264,6 +273,9 @@ export function TimetableAdminPage() {
 
     if (cachedEntries && cachedEntries.length > 0) {
       setEntries(cachedEntries);
+      setTeachers(cachedTeachers || []);
+      setClasses(cachedClasses || []);
+      setSubjects(cachedSubjects || []);
       calculateStats(cachedEntries);
       toast.info("Using cached data (offline mode)");
     } else {
@@ -555,11 +567,17 @@ export function TimetableAdminPage() {
 
   return (
     <div className="space-y-6">
-      {/* Offline mode indicator */}
-      {!isOnline && (
+      {/* API Error / Offline mode indicator */}
+      {apiError && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-sm text-yellow-800 flex items-center gap-2">
           <AlertCircle className="size-4" />
-          Offline mode - Changes are saved locally and will sync when connection is restored
+          {apiError} - Using local data
+        </div>
+      )}
+      {!isOnline && !apiError && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-sm text-yellow-800 flex items-center gap-2">
+          <AlertCircle className="size-4" />
+          Offline mode - Changes are saved locally
         </div>
       )}
 
@@ -763,7 +781,7 @@ export function TimetableAdminPage() {
         />
       )}
 
-      {/* Modals */}
+      {/* Modals - Keep the same */}
       {(showAddModal || editingEntry) && (
         <TimetableEntryModal
           initial={editingEntry || {
@@ -819,7 +837,7 @@ export function TimetableAdminPage() {
 }
 
 // ============================================
-// TABLE VIEW
+// TABLE VIEW (Same as before)
 // ============================================
 
 function TableView({ entries, onEdit, onDelete, canEdit }: {
@@ -828,6 +846,7 @@ function TableView({ entries, onEdit, onDelete, canEdit }: {
   onDelete: (id: string) => void;
   canEdit: boolean;
 }) {
+  // ... (keep the same as your existing TableView)
   return (
     <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
       <div className="overflow-x-auto">
@@ -921,8 +940,10 @@ function TableView({ entries, onEdit, onDelete, canEdit }: {
   );
 }
 
+// ... Keep GridView, CalendarView, TimetableEntryModal, BulkAddModal, CopyYearModal, Field helper exactly the same as your existing code ...
+
 // ============================================
-// GRID VIEW
+// GRID VIEW (Keep your existing GridView)
 // ============================================
 
 function GridView({ entries, onEdit, onDelete }: {
@@ -930,6 +951,7 @@ function GridView({ entries, onEdit, onDelete }: {
   onEdit: (entry: TimetableEntry) => void;
   onDelete: (id: string) => void;
 }) {
+  // ... your existing GridView code ...
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {entries.length === 0 ? (
@@ -1005,7 +1027,7 @@ function GridView({ entries, onEdit, onDelete }: {
 }
 
 // ============================================
-// CALENDAR VIEW
+// CALENDAR VIEW (Keep your existing CalendarView)
 // ============================================
 
 function CalendarView({ entries, days, onEdit }: {
@@ -1013,6 +1035,7 @@ function CalendarView({ entries, days, onEdit }: {
   days: string[];
   onEdit: (entry: TimetableEntry) => void;
 }) {
+  // ... your existing CalendarView code ...
   const [currentWeek, setCurrentWeek] = useState(0);
   const timeSlots = Array.from({ length: 8 }, (_, i) => `${8 + i}:00`);
 
@@ -1103,8 +1126,10 @@ function CalendarView({ entries, days, onEdit }: {
   );
 }
 
+// ... Keep TimetableEntryModal, BulkAddModal, CopyYearModal, Field helper exactly as they are in your code ...
+
 // ============================================
-// TIMETABLE ENTRY MODAL
+// TIMETABLE ENTRY MODAL (Keep your existing)
 // ============================================
 
 function TimetableEntryModal({
@@ -1122,6 +1147,7 @@ function TimetableEntryModal({
   onSave: (entry: TimetableEntry) => void;
   onCancel: () => void;
 }) {
+  // ... your existing code ...
   const [form, setForm] = useState<TimetableEntry>(initial);
   const [saving, setSaving] = useState(false);
   const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -1152,6 +1178,7 @@ function TimetableEntryModal({
         </div>
 
         <div className="grid sm:grid-cols-2 gap-4">
+          {/* ... all your form fields ... */}
           <Field label="Day*">
             <select
               value={form.day}
@@ -1321,8 +1348,10 @@ function TimetableEntryModal({
   );
 }
 
+// ... Keep BulkAddModal, CopyYearModal, Field helper exactly as they are ...
+
 // ============================================
-// BULK ADD MODAL
+// BULK ADD MODAL (Keep your existing)
 // ============================================
 
 function BulkAddModal({
@@ -1340,6 +1369,7 @@ function BulkAddModal({
   onSave: (entries: TimetableEntry[]) => void;
   onCancel: () => void;
 }) {
+  // ... your existing code ...
   const [entries, setEntries] = useState<Partial<TimetableEntry>[]>([
     { day: "Monday", periodNumber: 1, cycle: "first", ratePerPeriod: 500 }
   ]);
@@ -1533,7 +1563,7 @@ function BulkAddModal({
 }
 
 // ============================================
-// COPY YEAR MODAL
+// COPY YEAR MODAL (Keep your existing)
 // ============================================
 
 function CopyYearModal({
@@ -1545,6 +1575,7 @@ function CopyYearModal({
   onCopy: (sourceYear: string, targetYear: string) => void;
   onCancel: () => void;
 }) {
+  // ... your existing code ...
   const [sourceYear, setSourceYear] = useState("2023-2024");
   const [targetYear, setTargetYear] = useState(currentYear);
 

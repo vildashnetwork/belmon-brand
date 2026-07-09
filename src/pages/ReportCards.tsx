@@ -654,12 +654,12 @@ export function ReportCardsIndex() {
           <tr>
             <td style="padding:5px 6px;border:1px solid #d6d3d1;text-align:left;font-weight:600;font-size:10px;">${sub.name}</td>
             ${seqCells}
-            <td style="padding:5px 6px;border:1px solid #d6d3d1;text-align:center;font-size:9.5px;">${sub.average > 0 ? sub.average.toFixed(2) : "-"}</td>
-            <td style="padding:5px 6px;border:1px solid #d6d3d1;text-align:center;font-size:9.5px;">${sub.coefficient}</td>
-            <td style="padding:5px 6px;border:1px solid #d6d3d1;text-align:center;font-weight:bold;font-size:9.5px;">${sub.average > 0 ? sub.weightedTotal.toFixed(2) : "-"}</td>
+            <td style="padding:3px 4px;border:1px solid #d6d3d1;text-align:center;font-size:9.5px;">${sub.average > 0 ? sub.average.toFixed(2) : "-"}</td>
+            <td style="padding:3px 4px;border:1px solid #d6d3d1;text-align:center;font-size:9.5px;">${sub.coefficient}</td>
+            <td style="padding:3px 4px;border:1px solid #d6d3d1;text-align:center;font-weight:bold;font-size:9.5px;">${sub.average > 0 ? sub.weightedTotal.toFixed(2) : "-"}</td>
 
-            <td style="padding:5px 6px;border:1px solid #d6d3d1;text-align:center;font-size:9.5px;">${sub.remark}</td>
-            <td style="padding:5px 6px;border:1px solid #d6d3d1;text-align:center;font-size:9.5px;">${sub.teacher || "—"}</td>
+            <td style="padding:3px 4px;border:1px solid #d6d3d1;text-align:center;font-size:9.5px;">${sub.remark}</td>
+            <td style="padding:3px 4px;border:1px solid #d6d3d1;text-align:center;font-size:9.5px;">${sub.teacher || "—"}</td>
           </tr>`;
       })
       .join("");
@@ -707,14 +707,14 @@ export function ReportCardsIndex() {
         <table style="width:100%;border-collapse:collapse;font-size:10px;border:1px solid #121212;margin-bottom:16px;">
           <thead>
             <tr style="background:#121212;color:#fff;">
-              <th style="padding:5px 6px;border:1px solid #121212;font-weight:700;text-align:center;font-size:10px;">Subject</th>
+              <th style="padding:3px 4px;border:1px solid #121212;font-weight:700;text-align:center;font-size:10px;">Subject</th>
               ${seqHeaders}
-              <th style="padding:5px 6px;border:1px solid #121212;font-weight:700;text-align:center;font-size:10px;">Avg</th>
-              <th style="padding:5px 6px;border:1px solid #121212;font-weight:700;text-align:center;font-size:10px;">Coef</th>
-              <th style="padding:5px 6px;border:1px solid #121212;font-weight:700;text-align:center;font-size:10px;">Total</th>
+              <th style="padding:3px 4px;border:1px solid #121212;font-weight:700;text-align:center;font-size:10px;">Avg</th>
+              <th style="padding:3px 4px;border:1px solid #121212;font-weight:700;text-align:center;font-size:10px;">Coef</th>
+              <th style="padding:3px 4px;border:1px solid #121212;font-weight:700;text-align:center;font-size:10px;">Total</th>
           
-              <th style="padding:5px 6px;border:1px solid #121212;font-weight:700;text-align:center;font-size:10px;">Remark</th>
-              <th style="padding:5px 6px;border:1px solid #121212;font-weight:700;text-align:center;font-size:10px;">Teacher</th>
+              <th style="padding:3px 4px;border:1px solid #121212;font-weight:700;text-align:center;font-size:10px;">Remark</th>
+              <th style="padding:3px 4px;border:1px solid #121212;font-weight:700;text-align:center;font-size:10px;">Teacher</th>
             </tr>
           </thead>
           <tbody>
