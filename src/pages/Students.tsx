@@ -813,9 +813,9 @@ function StudentDialog({
         <div className="mt-4 p-3 bg-stone-50 rounded-xl text-xs">
           <p className="font-bold">Fee Structure:</p>
           <ul className="mt-1 space-y-0.5 text-black/60">
-            <li>Form 1 - 4: 80,000 XAF</li>
-            <li>Form 5: 90,000 XAF</li>
-            <li>Lower 6th - Upper 6th: 100,000 XAF</li>
+            <li>Form 1 - 4: 5,000 XAF</li>
+            <li>Form 5: 5,000 XAF</li>
+            <li>Lower 6th - Upper 6th: 10,000 XAF</li>
           </ul>
         </div>
 
