@@ -36,16 +36,16 @@ interface Class {
 // Helper function to get fee by class name
 function getFeeByClass(className: string): number {
   const feeMap: { [key: string]: number } = {
-    "Form 1": 80000,
-    "Form 2": 80000,
-    "Form 3": 80000,
-    "Form 4": 80000,
-    "Form 5": 90000,
-    "Lower 6th": 100000,
-    "Upper 6th": 100000,
+    "Form 1": 5000,
+    "Form 2": 5000,
+    "Form 3": 5000,
+    "Form 4": 5000,
+    "Form 5": 5000,
+    "Lower 6th": 10000,
+    "Upper 6th": 10000,
     "Graduated": 0
   };
-  return feeMap[className] || 80000;
+  return feeMap[className] || 5000;
 }
 
 // Helper to check if ID is a MongoDB ObjectId
