@@ -694,7 +694,8 @@ function ClassDialog({
   "ACCOUNTING", 
   "BUSINESS STUDIES",  // Fixed typo from "BUISNESS STUDIES"
   "SECRETARIAL STUDIES" ,
-  "CLIN" // Fixed typo from "SECRETERIAL STUDIES"
+  "CLIN",
+  "Industrial" // Fixed typo from "SECRETERIAL STUDIES"
 ];
   const cycles = ["1st Cycle", "2nd Cycle"];
   const academicYears = ["2026-2027", "2027-2028", "2028-2029"];
