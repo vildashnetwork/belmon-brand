@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   LayoutDashboard, Users, GraduationCap, BookOpen, ClipboardEdit,
   FileText, Wallet, Settings, LogOut, Menu, X, Bell, ArrowUpRight,
+  Calendar,
 } from "lucide-react";
 import { currentUser, logout } from "@/lib/auth";
 import type { User, Role } from "@/lib/types";
@@ -18,13 +19,14 @@ const ALL: Role[] = ["super_admin", "admin", "teacher", "bursar", "parent"];
 
 const NAV: NavItem[] = [
   { to: "/app", label: "Dashboard", icon: LayoutDashboard, end: true, roles: ALL },
-  { to: "/app/students", label: "Students", icon: Users, roles: ["super_admin", "admin", "teacher", "bursar"] },
+  { to: "/app/students", label: "Students", icon: Users, roles: ["super_admin", "admin", "bursar"] },
   { to: "/app/teachers", label: "Teachers", icon: GraduationCap, roles: ["super_admin", "admin"] },
-  { to: "/app/classes", label: "Classes & Subjects", icon: BookOpen, roles: ["super_admin", "admin", "teacher"] },
+  { to: "/app/classes", label: "Classes & Subjects", icon: BookOpen, roles: ["super_admin", "admin"] },
   { to: "/app/mark-entry", label: "Mark Entry", icon: ClipboardEdit, roles: ["super_admin", "admin", "teacher"] },
-  { to: "/app/report-cards", label: "Report Cards", icon: FileText, roles: ["super_admin", "admin", "teacher", "parent"] },
+  { to: "/app/report-cards", label: "Report Cards", icon: FileText, roles: ["super_admin", "admin"] },
   { to: "/app/promotion", label: "Promotion", icon: ArrowUpRight, roles: ["super_admin", "admin"] },
   { to: "/app/fees", label: "Fees & Finance", icon: Wallet, roles: ["super_admin", "admin", "bursar"] },
+  { to: "/app/timetable", label: "Timetable", icon: Calendar, roles: ["super_admin", "admin"] },
   { to: "/app/settings", label: "Settings", icon: Settings, roles: ["super_admin", "admin"] },
 ];
 
@@ -128,5 +130,6 @@ function getPageTitle(p: string) {
   if (p.startsWith("/app/promotion")) return "Promotion";
   if (p.startsWith("/app/fees")) return "Fees & Finance";
   if (p.startsWith("/app/settings")) return "Settings";
+  if (p.startsWith("/app/timetable")) return "Timetable";
   return "MAMS";
 }

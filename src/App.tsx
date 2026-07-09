@@ -14,6 +14,7 @@ import { ReportCardsBulk } from "@/pages/ReportCardsBulk";
 import { FeesPage } from "@/pages/Fees";
 import { SettingsPage } from "@/pages/Settings";
 import { PromotionPage } from "@/pages/Promotion";
+import {TimetableAdminPage} from "@/pages/Timestable";
 
 export default function App() {
   return (
@@ -25,6 +26,7 @@ export default function App() {
           <Route index element={<Dashboard />} />
           <Route path="students" element={<StudentsPage />} />
           <Route path="teachers" element={<TeachersPage />} />
+          <Route path="timetable" element={<TimetableAdminPage />} />
           <Route path="classes" element={<ClassesPage />} />
           <Route path="mark-entry" element={<MarkEntry />} />
           <Route path="report-cards" element={<ReportCardsIndex />} />
