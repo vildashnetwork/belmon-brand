@@ -91,6 +91,7 @@ export function TimetableAdminPage() {
   const [showCopyModal, setShowCopyModal] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [stats, setStats] = useState<TimetableStats>({
     totalPeriods: 0,
     totalTeachers: 0,
@@ -131,7 +132,6 @@ export function TimetableAdminPage() {
   // ============================================
 
   const mapApiEntry = (entry: any): TimetableEntry => {
-    // Handle both API format and local format
     const teacherObj = entry.teacherId || {};
     const classObj = entry.classId || {};
     const subjectObj = entry.subjectId || {};
@@ -243,13 +243,27 @@ export function TimetableAdminPage() {
   };
 
   // ============================================
-  // FETCH DATA - FIXED
+  // FETCH DATA
   // ============================================
 
   const fetchAllData = useCallback(async () => {
     try {
       setLoading(true);
       setApiError(null);
+      
+      // Load from localStorage first
+      const cachedEntries = loadFromLocalStorage('entries');
+      const cachedTeachers = loadFromLocalStorage('teachers');
+      const cachedClasses = loadFromLocalStorage('classes');
+      const cachedSubjects = loadFromLocalStorage('subjects');
+
+      if (cachedEntries && cachedEntries.length > 0) {
+        setEntries(cachedEntries);
+        setTeachers(cachedTeachers || []);
+        setClasses(cachedClasses || []);
+        setSubjects(cachedSubjects || []);
+        calculateStats(cachedEntries);
+      }
       
       // Try to fetch from API
       try {
@@ -266,7 +280,6 @@ export function TimetableAdminPage() {
           setIsOnline(true);
           setApiError(null);
           
-          // Map timetable entries
           if (timetableRes.data.success && timetableRes.data.data.length > 0) {
             const mappedEntries = timetableRes.data.data.map(mapApiEntry);
             setEntries(mappedEntries);
@@ -289,51 +302,47 @@ export function TimetableAdminPage() {
             saveToLocalStorage('subjects', subjectsRes.data.data);
           }
         } else {
-          // Load from cache or generate mock
-          loadFromCache();
+          if (!cachedEntries || cachedEntries.length === 0) {
+            const mockData = generateMockData();
+            setEntries(mockData.entries);
+            setTeachers(mockData.teachers);
+            setClasses(mockData.classes);
+            setSubjects(mockData.subjects);
+            calculateStats(mockData.entries);
+            saveToLocalStorage('entries', mockData.entries);
+            saveToLocalStorage('teachers', mockData.teachers);
+            saveToLocalStorage('classes', mockData.classes);
+            saveToLocalStorage('subjects', mockData.subjects);
+            toast.info("Using demo data");
+          } else {
+            toast.info("Using cached data");
+          }
         }
       } catch (apiError) {
         console.error("API Error:", apiError);
         setApiError("API server error. Using local data.");
         setIsOnline(false);
-        loadFromCache();
+        if (!cachedEntries || cachedEntries.length === 0) {
+          const mockData = generateMockData();
+          setEntries(mockData.entries);
+          setTeachers(mockData.teachers);
+          setClasses(mockData.classes);
+          setSubjects(mockData.subjects);
+          calculateStats(mockData.entries);
+          saveToLocalStorage('entries', mockData.entries);
+          saveToLocalStorage('teachers', mockData.teachers);
+          saveToLocalStorage('classes', mockData.classes);
+          saveToLocalStorage('subjects', mockData.subjects);
+          toast.info("Using demo data (offline mode)");
+        }
       }
     } catch (error) {
       console.error("Error fetching data:", error);
       setIsOnline(false);
-      loadFromCache();
     } finally {
       setLoading(false);
     }
   }, []);
-
-  const loadFromCache = () => {
-    const cachedEntries = loadFromLocalStorage('entries');
-    const cachedTeachers = loadFromLocalStorage('teachers');
-    const cachedClasses = loadFromLocalStorage('classes');
-    const cachedSubjects = loadFromLocalStorage('subjects');
-
-    if (cachedEntries && cachedEntries.length > 0) {
-      setEntries(cachedEntries);
-      setTeachers(cachedTeachers || []);
-      setClasses(cachedClasses || []);
-      setSubjects(cachedSubjects || []);
-      calculateStats(cachedEntries);
-      toast.info("Using cached data");
-    } else {
-      const mockData = generateMockData();
-      setEntries(mockData.entries);
-      setTeachers(mockData.teachers);
-      setClasses(mockData.classes);
-      setSubjects(mockData.subjects);
-      calculateStats(mockData.entries);
-      saveToLocalStorage('entries', mockData.entries);
-      saveToLocalStorage('teachers', mockData.teachers);
-      saveToLocalStorage('classes', mockData.classes);
-      saveToLocalStorage('subjects', mockData.subjects);
-      toast.info("Using demo data");
-    }
-  };
 
   const calculateStats = (entries: TimetableEntry[]) => {
     const firstCycle = entries.filter(e => e.cycle === "first").length;
@@ -391,7 +400,7 @@ export function TimetableAdminPage() {
   }, [entries, searchTerm, selectedTeacher, selectedClass, selectedDay, selectedCycle]);
 
   // ============================================
-  // CRUD OPERATIONS - FIXED
+  // CRUD OPERATIONS
   // ============================================
 
   const syncToAPI = async (method: string, url: string, data?: any) => {
@@ -405,13 +414,14 @@ export function TimetableAdminPage() {
   };
 
   const handleSaveEntry = async (entry: TimetableEntry) => {
+    if (isSaving) return;
+    
     try {
       if (!entry.teacherId || !entry.classId || !entry.subjectId) {
         toast.error("Please fill in all required fields");
         return;
       }
 
-      // Check for conflicts
       const conflict = entries.find(e =>
         e.teacherId === entry.teacherId &&
         e.day === entry.day &&
@@ -424,26 +434,22 @@ export function TimetableAdminPage() {
         return;
       }
 
+      setIsSaving(true);
+      
       let updatedEntries;
       const isExisting = entries.some(e => e.id === entry.id);
-
-      // Prepare data for API
       const apiData = mapForApi(entry);
 
       if (isExisting) {
-        // Update existing
         const existingEntry = entries.find(e => e.id === entry.id);
         const apiId = existingEntry?._id || existingEntry?.id;
-        
         updatedEntries = entries.map(e => e.id === entry.id ? entry : e);
         await syncToAPI('PUT', `${API_BASE}/timetable/${apiId}`, apiData);
         toast.success("Timetable entry updated");
       } else {
-        // Create new
         const newEntry = { ...entry, id: `entry_${Date.now()}` };
         updatedEntries = [...entries, newEntry];
         const result = await syncToAPI('POST', `${API_BASE}/timetable`, apiData);
-        // If API returns with _id, update the entry with it
         if (result && result.data && result.data._id) {
           const updatedEntry = { ...newEntry, _id: result.data._id, id: result.data._id };
           updatedEntries = updatedEntries.map(e => e.id === newEntry.id ? updatedEntry : e);
@@ -459,13 +465,17 @@ export function TimetableAdminPage() {
     } catch (error) {
       console.error("Error saving timetable:", error);
       toast.error("Failed to save entry");
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const handleDeleteEntry = async (id: string) => {
     if (!window.confirm("Are you sure you want to delete this timetable entry?")) return;
+    if (isSaving) return;
 
     try {
+      setIsSaving(true);
       const entryToDelete = entries.find(e => e.id === id);
       const apiId = entryToDelete?._id || entryToDelete?.id;
       
@@ -480,16 +490,19 @@ export function TimetableAdminPage() {
       toast.success("Timetable entry deleted");
     } catch (error) {
       console.error("Error deleting timetable:", error);
-      // Delete locally anyway
       const updatedEntries = entries.filter(e => e.id !== id);
       setEntries(updatedEntries);
       calculateStats(updatedEntries);
       saveToLocalStorage('entries', updatedEntries);
       toast.warning("Deleted locally (API sync failed)");
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const handleBulkAdd = async (newEntries: TimetableEntry[]) => {
+    if (isSaving) return;
+    
     try {
       const validEntries = newEntries.filter(e => e.teacherId && e.classId && e.subjectId);
       if (validEntries.length === 0) {
@@ -497,10 +510,10 @@ export function TimetableAdminPage() {
         return;
       }
 
+      setIsSaving(true);
       const apiData = validEntries.map(mapForApi);
       const result = await syncToAPI('POST', `${API_BASE}/timetable/bulk`, { entries: apiData });
       
-      // Map back with IDs if API returned data
       let updatedEntries = [...entries, ...validEntries];
       if (result && result.data && result.data.entries) {
         const apiEntries = result.data.entries;
@@ -524,10 +537,14 @@ export function TimetableAdminPage() {
     } catch (error) {
       console.error("Error bulk adding timetable:", error);
       toast.error("Failed to add entries");
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const handleCopyFromPrevious = async (sourceYear: string, targetYear: string) => {
+    if (isSaving) return;
+    
     try {
       const sourceEntries = entries.filter(e => e.academicYear === sourceYear);
       if (sourceEntries.length === 0) {
@@ -535,6 +552,7 @@ export function TimetableAdminPage() {
         return;
       }
 
+      setIsSaving(true);
       const copiedEntries = sourceEntries.map(e => ({
         ...e,
         id: `entry_${Date.now()}_${Math.random()}`,
@@ -568,6 +586,8 @@ export function TimetableAdminPage() {
     } catch (error) {
       console.error("Error copying timetable:", error);
       toast.error("Failed to copy entries");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -621,7 +641,6 @@ export function TimetableAdminPage() {
 
   return (
     <div className="space-y-6">
-      {/* API Error / Offline mode indicator */}
       {apiError && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-sm text-yellow-800 flex items-center gap-2">
           <AlertCircle className="size-4" />
@@ -632,6 +651,12 @@ export function TimetableAdminPage() {
         <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-sm text-yellow-800 flex items-center gap-2">
           <AlertCircle className="size-4" />
           Offline mode - Changes are saved locally
+        </div>
+      )}
+      {isSaving && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-sm text-blue-800 flex items-center gap-2">
+          <RefreshCw className="size-4 animate-spin" />
+          Saving...
         </div>
       )}
 
@@ -649,13 +674,15 @@ export function TimetableAdminPage() {
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => setShowBulkModal(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 border-brand/20 text-brand text-sm font-semibold hover:bg-brand/5 transition-all"
+            disabled={isSaving}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 border-brand/20 text-brand text-sm font-semibold hover:bg-brand/5 transition-all disabled:opacity-50"
           >
             <Upload className="size-4" /> Bulk Add
           </button>
           <button
             onClick={() => setShowCopyModal(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 border-brand/20 text-brand text-sm font-semibold hover:bg-brand/5 transition-all"
+            disabled={isSaving}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 border-brand/20 text-brand text-sm font-semibold hover:bg-brand/5 transition-all disabled:opacity-50"
           >
             <Copy className="size-4" /> Copy Year
           </button>
@@ -673,7 +700,8 @@ export function TimetableAdminPage() {
           </button>
           <button
             onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand text-white text-sm font-semibold hover:bg-brand/90 transition-all shadow-lg shadow-brand/20"
+            disabled={isSaving}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand text-white text-sm font-semibold hover:bg-brand/90 transition-all shadow-lg shadow-brand/20 disabled:opacity-50"
           >
             <Plus className="size-4" /> Add Period
           </button>
@@ -708,9 +736,8 @@ export function TimetableAdminPage() {
         </div>
       </div>
 
-      {/* Filters - Keep the same */}
+      {/* Filters */}
       <div className="flex flex-wrap gap-3 items-end">
-        {/* ... filters remain the same ... */}
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-black/40" />
           <input
@@ -891,8 +918,6 @@ export function TimetableAdminPage() {
   );
 }
 
-// ... rest of the components (TableView, GridView, CalendarView, TimetableEntryModal, BulkAddModal, CopyYearModal, Field) remain the same as before ...
-
 // ============================================
 // TABLE VIEW
 // ============================================
@@ -903,7 +928,6 @@ function TableView({ entries, onEdit, onDelete, canEdit }: {
   onDelete: (id: string) => void;
   canEdit: boolean;
 }) {
-  // ... (same as before)
   return (
     <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
       <div className="overflow-x-auto">
@@ -997,8 +1021,6 @@ function TableView({ entries, onEdit, onDelete, canEdit }: {
   );
 }
 
-// ... GridView, CalendarView, TimetableEntryModal, BulkAddModal, CopyYearModal, Field helper remain the same as before ...
-
 // ============================================
 // GRID VIEW
 // ============================================
@@ -1018,7 +1040,6 @@ function GridView({ entries, onEdit, onDelete }: {
       ) : (
         entries.map((entry) => (
           <div key={entry.id} className="bg-white rounded-2xl border border-stone-200 p-5 hover:shadow-lg transition-all hover:-translate-y-1">
-            {/* ... same as before ... */}
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-2">
                 <div className={`p-2 rounded-xl ${entry.cycle === "first" ? "bg-blue-50" : "bg-purple-50"}`}>
@@ -1083,7 +1104,605 @@ function GridView({ entries, onEdit, onDelete }: {
   );
 }
 
-// ... CalendarView, TimetableEntryModal, BulkAddModal, CopyYearModal, Field helper remain the same ...
+// ============================================
+// CALENDAR VIEW
+// ============================================
+
+function CalendarView({ entries, days, onEdit }: {
+  entries: TimetableEntry[];
+  days: string[];
+  onEdit: (entry: TimetableEntry) => void;
+}) {
+  const [currentWeek, setCurrentWeek] = useState(0);
+  const timeSlots = Array.from({ length: 8 }, (_, i) => `${8 + i}:00`);
+
+  const getEntriesForDayAndTime = (day: string, time: string) => {
+    return entries.filter(e => e.day === day && e.startTime === time);
+  };
+
+  return (
+    <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+      <div className="flex items-center justify-between p-4 border-b border-stone-200">
+        <h3 className="font-semibold flex items-center gap-2">
+          <CalendarDays className="size-5 text-brand" />
+          Weekly Calendar View
+        </h3>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setCurrentWeek(w => w - 1)}
+            className="p-2 rounded-lg hover:bg-stone-100 transition"
+          >
+            <ChevronLeft className="size-4" />
+          </button>
+          <button
+            onClick={() => setCurrentWeek(w => w + 1)}
+            className="p-2 rounded-lg hover:bg-stone-100 transition"
+          >
+            <ChevronRight className="size-4" />
+          </button>
+        </div>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr>
+              <th className="px-2 py-2 text-xs font-bold text-black/40 uppercase tracking-wider w-16">Time</th>
+              {days.map(day => (
+                <th key={day} className="px-2 py-2 text-xs font-bold text-black/50 uppercase tracking-wider min-w-[120px]">
+                  {day.substring(0, 3)}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {timeSlots.map(time => (
+              <tr key={time} className="border-t border-stone-100">
+                <td className="px-2 py-2 text-xs text-black/40 font-medium text-center">{time}</td>
+                {days.map(day => {
+                  const dayEntries = getEntriesForDayAndTime(day, time);
+                  return (
+                    <td key={`${day}-${time}`} className="px-1 py-1 min-h-[60px]">
+                      {dayEntries.map(entry => (
+                        <div
+                          key={entry.id}
+                          onClick={() => onEdit(entry)}
+                          className={`text-xs p-1.5 rounded-lg cursor-pointer hover:opacity-80 transition ${
+                            entry.cycle === "first" 
+                              ? "bg-blue-50 border border-blue-200" 
+                              : "bg-purple-50 border border-purple-200"
+                          }`}
+                        >
+                          <div className="font-semibold truncate">{entry.teacherName}</div>
+                          <div className="truncate text-black/60">{entry.subjectName}</div>
+                          <div className="truncate text-black/40 text-[10px]">{entry.className}</div>
+                          <div className="text-[10px] font-bold text-brand mt-0.5">{entry.ratePerPeriod} FRS</div>
+                        </div>
+                      ))}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="p-3 border-t border-stone-200 flex gap-4 text-xs">
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded bg-blue-100 border border-blue-200"></div>
+          <span className="text-black/60">1st Cycle</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded bg-purple-100 border border-purple-200"></div>
+          <span className="text-black/60">2nd Cycle</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-black/40">Click on any period to edit</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================
+// TIMETABLE ENTRY MODAL
+// ============================================
+
+function TimetableEntryModal({
+  initial,
+  teachers,
+  classes,
+  subjects,
+  onSave,
+  onCancel
+}: {
+  initial: TimetableEntry;
+  teachers: Teacher[];
+  classes: Class[];
+  subjects: Subject[];
+  onSave: (entry: TimetableEntry) => void;
+  onCancel: () => void;
+}) {
+  const [form, setForm] = useState<TimetableEntry>(initial);
+  const [saving, setSaving] = useState(false);
+  const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+  const set = <K extends keyof TimetableEntry>(k: K, v: TimetableEntry[K]) =>
+    setForm((f) => ({ ...f, [k]: v }));
+
+  const handleSubmit = () => {
+    setSaving(true);
+    try {
+      onSave(form);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm grid place-items-center p-4" onClick={onCancel}>
+      <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="font-display font-bold text-xl flex items-center gap-3">
+            <Calendar className="size-6 text-brand" />
+            {initial.teacherName ? "Edit Timetable Entry" : "Add New Period"}
+          </h3>
+          <button onClick={onCancel} className="text-black/40 hover:text-black/70">
+            <X className="size-5" />
+          </button>
+        </div>
+
+        <div className="grid sm:grid-cols-2 gap-4">
+          <Field label="Day*">
+            <select
+              value={form.day}
+              onChange={(e) => set("day", e.target.value)}
+              className={inputCls}
+            >
+              {days.map(d => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+            </select>
+          </Field>
+
+          <Field label="Period Number*">
+            <input
+              type="number"
+              value={form.periodNumber}
+              onChange={(e) => set("periodNumber", parseInt(e.target.value))}
+              className={inputCls}
+              min="1"
+              max="8"
+            />
+          </Field>
+
+          <Field label="Start Time*">
+            <input
+              type="time"
+              value={form.startTime}
+              onChange={(e) => set("startTime", e.target.value)}
+              className={inputCls}
+            />
+          </Field>
+
+          <Field label="End Time*">
+            <input
+              type="time"
+              value={form.endTime}
+              onChange={(e) => set("endTime", e.target.value)}
+              className={inputCls}
+            />
+          </Field>
+
+          <Field label="Teacher*">
+            <select
+              value={form.teacherId}
+              onChange={(e) => {
+                const teacher = teachers.find(t => t._id === e.target.value);
+                set("teacherId", e.target.value);
+                set("teacherName", teacher?.name || "");
+              }}
+              className={inputCls}
+            >
+              <option value="">Select Teacher</option>
+              {teachers.map(t => (
+                <option key={t._id} value={t._id}>{t.name}</option>
+              ))}
+            </select>
+          </Field>
+
+          <Field label="Class*">
+            <select
+              value={form.classId}
+              onChange={(e) => {
+                const cls = classes.find(c => c._id === e.target.value);
+                set("classId", e.target.value);
+                set("className", cls?.className || "");
+              }}
+              className={inputCls}
+            >
+              <option value="">Select Class</option>
+              {classes.map(c => (
+                <option key={c._id} value={c._id}>{c.className}</option>
+              ))}
+            </select>
+          </Field>
+
+          <Field label="Subject*">
+            <select
+              value={form.subjectId}
+              onChange={(e) => {
+                const subj = subjects.find(s => s._id === e.target.value);
+                set("subjectId", e.target.value);
+                set("subjectName", subj?.name || "");
+                set("subjectCode", subj?.code || "");
+              }}
+              className={inputCls}
+            >
+              <option value="">Select Subject</option>
+              {subjects.map(s => (
+                <option key={s._id} value={s._id}>{s.name} ({s.code})</option>
+              ))}
+            </select>
+          </Field>
+
+          <Field label="Cycle*">
+            <select
+              value={form.cycle}
+              onChange={(e) => {
+                const cycle = e.target.value as "first" | "second";
+                set("cycle", cycle);
+                set("ratePerPeriod", cycle === "first" ? 500 : 700);
+              }}
+              className={inputCls}
+            >
+              <option value="first">First Cycle (500 FRS)</option>
+              <option value="second">Second Cycle (700 FRS)</option>
+            </select>
+          </Field>
+
+          <Field label="Room">
+            <input
+              type="text"
+              value={form.room || ""}
+              onChange={(e) => set("room", e.target.value)}
+              className={inputCls}
+              placeholder="Room number"
+            />
+          </Field>
+
+          <Field label="Academic Year">
+            <input
+              type="text"
+              value={form.academicYear}
+              onChange={(e) => set("academicYear", e.target.value)}
+              className={inputCls}
+              placeholder="2024-2025"
+            />
+          </Field>
+
+          <div className="sm:col-span-2 bg-stone-50 rounded-xl p-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Rate per Period:</span>
+              <span className="text-xl font-bold text-brand">{form.ratePerPeriod} FRS</span>
+            </div>
+            <p className="text-xs text-black/40 mt-1">
+              {form.cycle === "first" 
+                ? "First cycle rate: 500 FRS per period" 
+                : "Second cycle rate: 700 FRS per period"}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-stone-100">
+          <button
+            onClick={onCancel}
+            className="px-4 py-2.5 rounded-xl border border-stone-200 text-sm font-semibold hover:bg-stone-50 transition"
+            disabled={saving}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            className="px-4 py-2.5 rounded-xl bg-brand text-white text-sm font-semibold hover:bg-brand/90 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-brand/20"
+            disabled={saving}
+          >
+            {saving ? (
+              <span className="flex items-center gap-2">
+                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Saving...
+              </span>
+            ) : (
+              "Save Entry"
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================
+// BULK ADD MODAL
+// ============================================
+
+function BulkAddModal({
+  teachers,
+  classes,
+  subjects,
+  days,
+  onSave,
+  onCancel
+}: {
+  teachers: Teacher[];
+  classes: Class[];
+  subjects: Subject[];
+  days: string[];
+  onSave: (entries: TimetableEntry[]) => void;
+  onCancel: () => void;
+}) {
+  const [entries, setEntries] = useState<Partial<TimetableEntry>[]>([
+    { day: "Monday", periodNumber: 1, cycle: "first", ratePerPeriod: 500 }
+  ]);
+  const [saving, setSaving] = useState(false);
+
+  const addRow = () => {
+    setEntries([...entries, { day: "Monday", periodNumber: entries.length + 1, cycle: "first", ratePerPeriod: 500 }]);
+  };
+
+  const removeRow = (index: number) => {
+    setEntries(entries.filter((_, i) => i !== index));
+  };
+
+  const updateRow = (index: number, field: string, value: any) => {
+    const updated = [...entries];
+    updated[index] = { ...updated[index], [field]: value };
+    if (field === "cycle") {
+      updated[index].ratePerPeriod = value === "first" ? 500 : 700;
+    }
+    setEntries(updated);
+  };
+
+  const handleSubmit = () => {
+    const validEntries = entries.filter(e => e.teacherId && e.classId && e.subjectId);
+    if (validEntries.length === 0) {
+      toast.error("Please fill in all required fields for at least one row");
+      return;
+    }
+
+    const formattedEntries = validEntries.map(e => ({
+      ...e,
+      id: `entry_${Date.now()}_${Math.random()}`,
+      teacherName: teachers.find(t => t._id === e.teacherId)?.name || "",
+      className: classes.find(c => c._id === e.classId)?.className || "",
+      subjectName: subjects.find(s => s._id === e.subjectId)?.name || "",
+      academicYear: "2024-2025",
+      isActive: true
+    })) as TimetableEntry[];
+
+    setSaving(true);
+    try {
+      onSave(formattedEntries);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm grid place-items-center p-4" onClick={onCancel}>
+      <div className="bg-white rounded-2xl max-w-4xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="font-display font-bold text-xl flex items-center gap-3">
+            <Upload className="size-6 text-brand" />
+            Bulk Add Timetable Entries
+          </h3>
+          <button onClick={onCancel} className="text-black/40 hover:text-black/70">
+            <X className="size-5" />
+          </button>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-stone-50">
+                <th className="px-2 py-2 text-left text-xs font-bold text-black/50">#</th>
+                <th className="px-2 py-2 text-left text-xs font-bold text-black/50">Day*</th>
+                <th className="px-2 py-2 text-left text-xs font-bold text-black/50">Period</th>
+                <th className="px-2 py-2 text-left text-xs font-bold text-black/50">Teacher*</th>
+                <th className="px-2 py-2 text-left text-xs font-bold text-black/50">Class*</th>
+                <th className="px-2 py-2 text-left text-xs font-bold text-black/50">Subject*</th>
+                <th className="px-2 py-2 text-left text-xs font-bold text-black/50">Cycle</th>
+                <th className="px-2 py-2 text-left text-xs font-bold text-black/50">Rate</th>
+                <th className="px-2 py-2 text-center text-xs font-bold text-black/50">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {entries.map((entry, index) => (
+                <tr key={index} className="border-b border-stone-100">
+                  <td className="px-2 py-2 text-center text-black/40">{index + 1}</td>
+                  <td className="px-2 py-2">
+                    <select
+                      value={entry.day || "Monday"}
+                      onChange={(e) => updateRow(index, "day", e.target.value)}
+                      className="w-full px-2 py-1 rounded border border-stone-200 text-sm"
+                    >
+                      {days.map(d => (
+                        <option key={d} value={d}>{d.substring(0, 3)}</option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="px-2 py-2">
+                    <input
+                      type="number"
+                      value={entry.periodNumber || 1}
+                      onChange={(e) => updateRow(index, "periodNumber", parseInt(e.target.value))}
+                      className="w-full px-2 py-1 rounded border border-stone-200 text-sm"
+                      min="1"
+                      max="8"
+                    />
+                  </td>
+                  <td className="px-2 py-2">
+                    <select
+                      value={entry.teacherId || ""}
+                      onChange={(e) => updateRow(index, "teacherId", e.target.value)}
+                      className="w-full px-2 py-1 rounded border border-stone-200 text-sm"
+                    >
+                      <option value="">Select</option>
+                      {teachers.map(t => (
+                        <option key={t._id} value={t._id}>{t.name}</option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="px-2 py-2">
+                    <select
+                      value={entry.classId || ""}
+                      onChange={(e) => updateRow(index, "classId", e.target.value)}
+                      className="w-full px-2 py-1 rounded border border-stone-200 text-sm"
+                    >
+                      <option value="">Select</option>
+                      {classes.map(c => (
+                        <option key={c._id} value={c._id}>{c.className}</option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="px-2 py-2">
+                    <select
+                      value={entry.subjectId || ""}
+                      onChange={(e) => updateRow(index, "subjectId", e.target.value)}
+                      className="w-full px-2 py-1 rounded border border-stone-200 text-sm"
+                    >
+                      <option value="">Select</option>
+                      {subjects.map(s => (
+                        <option key={s._id} value={s._id}>{s.name}</option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="px-2 py-2">
+                    <select
+                      value={entry.cycle || "first"}
+                      onChange={(e) => updateRow(index, "cycle", e.target.value)}
+                      className="w-full px-2 py-1 rounded border border-stone-200 text-sm"
+                    >
+                      <option value="first">1st</option>
+                      <option value="second">2nd</option>
+                    </select>
+                  </td>
+                  <td className="px-2 py-2 text-center font-bold text-brand">
+                    {entry.cycle === "first" ? 500 : 700} FRS
+                  </td>
+                  <td className="px-2 py-2 text-center">
+                    <button
+                      onClick={() => removeRow(index)}
+                      className="p-1 rounded-lg hover:bg-red-50 text-red-500 transition"
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="flex items-center justify-between mt-4">
+          <button
+            onClick={addRow}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-dashed border-stone-300 text-sm font-semibold hover:border-brand/50 hover:text-brand transition"
+          >
+            <Plus className="size-4" /> Add Row
+          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={onCancel}
+              className="px-4 py-2.5 rounded-xl border border-stone-200 text-sm font-semibold hover:bg-stone-50 transition"
+              disabled={saving}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSubmit}
+              className="px-4 py-2.5 rounded-xl bg-brand text-white text-sm font-semibold hover:bg-brand/90 transition disabled:opacity-50"
+              disabled={saving}
+            >
+              {saving ? "Adding..." : `Add ${entries.filter(e => e.teacherId && e.classId && e.subjectId).length} Entries`}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================
+// COPY YEAR MODAL
+// ============================================
+
+function CopyYearModal({
+  currentYear,
+  onCopy,
+  onCancel
+}: {
+  currentYear: string;
+  onCopy: (sourceYear: string, targetYear: string) => void;
+  onCancel: () => void;
+}) {
+  const [sourceYear, setSourceYear] = useState("2023-2024");
+  const [targetYear, setTargetYear] = useState(currentYear);
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm grid place-items-center p-4" onClick={onCancel}>
+      <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <h3 className="font-display font-bold text-xl flex items-center gap-3 mb-5">
+          <Copy className="size-6 text-brand" />
+          Copy Timetable from Previous Year
+        </h3>
+
+        <div className="space-y-4">
+          <Field label="Source Academic Year">
+            <input
+              type="text"
+              value={sourceYear}
+              onChange={(e) => setSourceYear(e.target.value)}
+              className={inputCls}
+              placeholder="2023-2024"
+            />
+          </Field>
+
+          <Field label="Target Academic Year">
+            <input
+              type="text"
+              value={targetYear}
+              onChange={(e) => setTargetYear(e.target.value)}
+              className={inputCls}
+              placeholder={currentYear}
+            />
+          </Field>
+
+          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-sm text-yellow-800">
+            <AlertCircle className="size-4 inline mr-2" />
+            This will copy all timetable entries from the source year to the target year.
+            Existing entries in the target year will not be overwritten.
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-stone-100">
+          <button
+            onClick={onCancel}
+            className="px-4 py-2.5 rounded-xl border border-stone-200 text-sm font-semibold hover:bg-stone-50 transition"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => onCopy(sourceYear, targetYear)}
+            className="px-4 py-2.5 rounded-xl bg-brand text-white text-sm font-semibold hover:bg-brand/90 transition shadow-lg shadow-brand/20"
+          >
+            <Copy className="size-4 inline mr-2" />
+            Copy Timetable
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ============================================
 // HELPER COMPONENTS
