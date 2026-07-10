@@ -67,6 +67,7 @@ interface Teacher {
 
 // Term definitions
 const TERMS = [
+    { id: "holiday", label: "Holiday Classes", sequences: ["1st seq"] },
   { id: "first", label: "First Term", sequences: ["1st seq", "2nd seq"] },
   { id: "second", label: "Second Term", sequences: ["3rd seq", "4th seq"] },
   { id: "third", label: "Third Term", sequences: ["5th seq", "6th seq"] },
