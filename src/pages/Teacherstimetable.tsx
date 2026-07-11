@@ -442,14 +442,14 @@ export function TeacherTimetableView() {
         <table style="width: 100%; border-collapse: collapse; font-size: 11px; min-width: 600px;">
           <thead>
             <tr style="background: #D4AF37; color: white;">
-              <th style="padding: 6px; border: 1px solid #ddd; text-align: left;">Day</th>
-              <th style="padding: 6px; border: 1px solid #ddd; text-align: left;">Period</th>
-              <th style="padding: 6px; border: 1px solid #ddd; text-align: left;">Time</th>
-              <th style="padding: 6px; border: 1px solid #ddd; text-align: left;">Subject</th>
-              <th style="padding: 6px; border: 1px solid #ddd; text-align: left;">Class</th>
-              <th style="padding: 6px; border: 1px solid #ddd; text-align: left;">Cycle</th>
-              <th style="padding: 6px; border: 1px solid #ddd; text-align: left;">Rate</th>
-              <th style="padding: 6px; border: 1px solid #ddd; text-align: left;">Room</th>
+              <th style="padding: 4px; border: 1px solid #ddd; text-align: left;">Day</th>
+              <th style="padding: 4px; border: 1px solid #ddd; text-align: left;">Period</th>
+              <th style="padding: 4px; border: 1px solid #ddd; text-align: left;">Time</th>
+              <th style="padding: 4px; border: 1px solid #ddd; text-align: left;">Subject</th>
+              <th style="padding: 4px; border: 1px solid #ddd; text-align: left;">Class</th>
+              <th style="padding: 4px; border: 1px solid #ddd; text-align: left;">Cycle</th>
+              <th style="padding: 4px; border: 1px solid #ddd; text-align: left;">Rate</th>
+              <th style="padding: 4px; border: 1px solid #ddd; text-align: left;">Room</th>
             </tr>
           </thead>
           <tbody>
@@ -460,14 +460,14 @@ export function TeacherTimetableView() {
     entries.forEach((entry, index) => {
       html += `
         <tr style="${index % 2 === 0 ? 'background: #fafafa;' : ''}">
-          <td style="padding: 6px; border: 1px solid #ddd;">${entry.day}</td>
-          <td style="padding: 6px; border: 1px solid #ddd;">${entry.periodNumber || index + 1}</td>
-          <td style="padding: 6px; border: 1px solid #ddd;">${entry.startTime} - ${entry.endTime}</td>
-          <td style="padding: 6px; border: 1px solid #ddd;">${entry.subjectName} ${entry.subjectCode ? `(${entry.subjectCode})` : ''}</td>
-          <td style="padding: 6px; border: 1px solid #ddd;">${entry.className}</td>
-          <td style="padding: 6px; border: 1px solid #ddd;">${entry.cycle === 'first' ? '1st' : '2nd'}</td>
-          <td style="padding: 6px; border: 1px solid #ddd;">${entry.ratePerPeriod} FRS</td>
-          <td style="padding: 6px; border: 1px solid #ddd;">${entry.room || '-'}</td>
+          <td style="padding: 4px; border: 1px solid #ddd;">${entry.day}</td>
+          <td style="padding: 4px; border: 1px solid #ddd;">${entry.periodNumber || index + 1}</td>
+          <td style="padding: 4px; border: 1px solid #ddd;">${entry.startTime} - ${entry.endTime}</td>
+          <td style="padding: 4px; border: 1px solid #ddd;">${entry.subjectName} ${entry.subjectCode ? `(${entry.subjectCode})` : ''}</td>
+          <td style="padding: 4px; border: 1px solid #ddd;">${entry.className}</td>
+          <td style="padding: 4px; border: 1px solid #ddd;">${entry.cycle === 'first' ? '1st' : '2nd'}</td>
+          <td style="padding: 4px; border: 1px solid #ddd;">${entry.ratePerPeriod} FRS</td>
+          <td style="padding: 4px; border: 1px solid #ddd;">${entry.room || '-'}</td>
         </tr>
       `;
     });
