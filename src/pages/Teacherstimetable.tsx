@@ -449,6 +449,7 @@ export function TeacherTimetableView() {
               <th style="padding: 6px; border: 1px solid #ddd; text-align: left;">Class</th>
               <th style="padding: 6px; border: 1px solid #ddd; text-align: left;">Cycle</th>
               <th style="padding: 6px; border: 1px solid #ddd; text-align: left;">Rate</th>
+              <th style="padding: 6px; border: 1px solid #ddd; text-align: left;">Room</th>
             </tr>
           </thead>
           <tbody>
@@ -466,6 +467,7 @@ export function TeacherTimetableView() {
           <td style="padding: 6px; border: 1px solid #ddd;">${entry.className}</td>
           <td style="padding: 6px; border: 1px solid #ddd;">${entry.cycle === 'first' ? '1st' : '2nd'}</td>
           <td style="padding: 6px; border: 1px solid #ddd;">${entry.ratePerPeriod} FRS</td>
+          <td style="padding: 6px; border: 1px solid #ddd;">${entry.room || '-'}</td>
         </tr>
       `;
     });
@@ -737,7 +739,8 @@ function TodayView({ weeklyData, groupedByDay, currentDay }: {
                 <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[10px] sm:text-xs font-bold text-black/50 uppercase tracking-wider">Class</th>
                 <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[10px] sm:text-xs font-bold text-black/50 uppercase tracking-wider">Cycle</th>
                 <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[10px] sm:text-xs font-bold text-black/50 uppercase tracking-wider">Rate</th>
-                </tr>
+                <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[10px] sm:text-xs font-bold text-black/50 uppercase tracking-wider">Room</th>
+              </tr>
             </thead>
             <tbody>
               {todaySchedule.map((entry, index) => (
@@ -759,7 +762,8 @@ function TodayView({ weeklyData, groupedByDay, currentDay }: {
                     </span>
                   </td>
                   <td className="px-2 sm:px-3 py-1.5 sm:py-2.5 text-xs sm:text-sm font-bold text-brand">{entry.ratePerPeriod} FRS</td>
-                   </tr>
+                  <td className="px-2 sm:px-3 py-1.5 sm:py-2.5 text-xs sm:text-sm">{entry.room || '-'}</td>
+                </tr>
               ))}
             </tbody>
           </table>
@@ -872,7 +876,8 @@ function WeeklyView({ groupedByDay, onDayClick, timetableData }: {
                   <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[10px] sm:text-xs font-bold text-black/50 uppercase tracking-wider">Class</th>
                   <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[10px] sm:text-xs font-bold text-black/50 uppercase tracking-wider">Cycle</th>
                   <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[10px] sm:text-xs font-bold text-black/50 uppercase tracking-wider">Rate</th>
-
+                  <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[10px] sm:text-xs font-bold text-black/50 uppercase tracking-wider">Room</th>
+                </tr>
               </thead>
               <tbody>
                 {displayEntries.map((entry, index) => (
@@ -895,7 +900,8 @@ function WeeklyView({ groupedByDay, onDayClick, timetableData }: {
                       </span>
                     </td>
                     <td className="px-2 sm:px-3 py-1.5 sm:py-2.5 text-xs sm:text-sm font-bold text-brand">{entry.ratePerPeriod} FRS</td>
-                 </tr>
+                    <td className="px-2 sm:px-3 py-1.5 sm:py-2.5 text-xs sm:text-sm">{entry.room || '-'}</td>
+                  </tr>
                 ))}
               </tbody>
             </table>
@@ -973,7 +979,8 @@ function DailyView({
                   <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[10px] sm:text-xs font-bold text-black/50 uppercase tracking-wider">Class</th>
                   <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[10px] sm:text-xs font-bold text-black/50 uppercase tracking-wider">Cycle</th>
                   <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[10px] sm:text-xs font-bold text-black/50 uppercase tracking-wider">Rate</th>
-                    </tr>
+                  <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[10px] sm:text-xs font-bold text-black/50 uppercase tracking-wider">Room</th>
+                </tr>
               </thead>
               <tbody>
                 {entries.map((entry, index) => (
@@ -995,7 +1002,8 @@ function DailyView({
                       </span>
                     </td>
                     <td className="px-2 sm:px-3 py-1.5 sm:py-2.5 text-xs sm:text-sm font-bold text-brand">{entry.ratePerPeriod} FRS</td>
-                       </tr>
+                    <td className="px-2 sm:px-3 py-1.5 sm:py-2.5 text-xs sm:text-sm">{entry.room || '-'}</td>
+                  </tr>
                 ))}
               </tbody>
             </table>
