@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { 
-  Calendar, Clock, Users, Search, X, CalendarDays, 
-  User, BookOpen, ChevronLeft, ChevronRight, 
-  AlertCircle, Check, Home, LogOut, Menu, 
+import {
+  Calendar, Clock, Users, Search, X, CalendarDays,
+  User, BookOpen, ChevronLeft, ChevronRight,
+  AlertCircle, Check, Home, LogOut, Menu,
   Sun, Moon, Settings, Bell, Award, DollarSign, Download, Printer,
-  ChevronDown, ChevronUp
+  ChevronDown, ChevronUp, FileDown, LayoutGrid
 } from "lucide-react";
 import { toast } from "sonner";
 import axios from "axios";
@@ -60,20 +60,6 @@ interface TimetableData {
   totalEntries: number;
 }
 
-interface WeeklyData {
-  teacher: Teacher;
-  currentDay: string;
-  todaySchedule: TimetableEntry[];
-  upcomingToday: TimetableEntry[];
-  nextPeriod: TimetableEntry | null;
-  weeklySchedule: TimetableEntry[];
-  stats: {
-    totalPeriods: number;
-    todayPeriods: number;
-    remainingToday: number;
-  };
-}
-
 // ============================================
 // SUBJECT AND CLASS DATA
 // ============================================
@@ -112,19 +98,79 @@ const CLASSES = [
 ];
 
 // ============================================
+// TIME SLOTS CONFIGURATION
+// ============================================
+
+const TIME_SLOTS = [
+  { start: "08:15", end: "09:00", label: "1", isBreak: false },
+  { start: "09:00", end: "09:45", label: "2", isBreak: false },
+  { start: "09:45", end: "10:30", label: "3", isBreak: false },
+  { start: "10:30", end: "11:00", label: "BREAK", isBreak: true },
+  { start: "11:00", end: "12:00", label: "4", isBreak: false },
+];
+
+const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+// ============================================
+// BUILD MATRIX TIMETABLE WITH TIME RANGES
+// ============================================
+
+function buildMatrixTimetable(entries: TimetableEntry[]): any {
+  const matrix: any = {};
+
+  DAYS.forEach(day => {
+    matrix[day] = {};
+    TIME_SLOTS.forEach(slot => {
+      const key = `${slot.start}|${slot.end}`;
+      matrix[day][key] = {
+        label: slot.label,
+        isBreak: slot.isBreak,
+        startTime: slot.start,
+        endTime: slot.end,
+        entries: []
+      };
+    });
+  });
+
+  // Map entries to time slots
+  entries.forEach(entry => {
+    const matchedSlot = TIME_SLOTS.find(slot => {
+      return entry.startTime >= slot.start && entry.endTime <= slot.end;
+    });
+
+    if (matchedSlot) {
+      const key = `${matchedSlot.start}|${matchedSlot.end}`;
+      if (matrix[entry.day] && matrix[entry.day][key]) {
+        matrix[entry.day][key].entries.push(entry);
+      }
+    }
+  });
+
+  return {
+    matrix,
+    days: DAYS.filter(d => d !== 'Saturday'), // Only show weekdays
+    timeSlots: TIME_SLOTS,
+  };
+}
+
+// ============================================
 // TEACHER TIMETABLE VIEW
 // ============================================
 
 export function TeacherTimetableView() {
   const [loading, setLoading] = useState(true);
   const [timetableData, setTimetableData] = useState<TimetableData | null>(null);
-  const [weeklyData, setWeeklyData] = useState<WeeklyData | null>(null);
   const [selectedDay, setSelectedDay] = useState<string>("");
   const [daySchedule, setDaySchedule] = useState<TimetableEntry[]>([]);
-  const [viewMode, setViewMode] = useState<"weekly" | "daily" | "today">("weekly");
+  const [viewMode, setViewMode] = useState<"weekly" | "daily" | "today" | "matrix">("weekly");
   const [error, setError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [pdfOptions, setPdfOptions] = useState({
+    showTeacherNames: true,
+    showRoomNumbers: true,
+    includeHeader: true,
+  });
+  const [showPdfOptions, setShowPdfOptions] = useState(false);
   const hasFetched = useRef(false);
 
   // Get logged in user from localStorage
@@ -157,20 +203,20 @@ export function TeacherTimetableView() {
       role: 'teacher'
     };
 
-    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
     const mockEntries: TimetableEntry[] = [];
-    const periods = [1, 2, 3, 4, 5, 6];
+    const periods = [1, 2, 3, 4];
 
-    days.forEach((day, di) => {
+    DAYS.slice(0, 5).forEach((day, di) => {
       periods.forEach((period, pi) => {
         if (Math.random() > 0.35) {
           const cycle = pi % 2 === 0 ? 'first' : 'second';
           const classIdx = (di + pi * 2) % CLASSES.length;
           const subjectIdx = (di + pi * 3) % SUBJECTS.length;
-          
+
           const cls = CLASSES[classIdx];
           const subj = SUBJECTS[subjectIdx];
-          
+          const timeSlot = TIME_SLOTS[pi] || TIME_SLOTS[0];
+
           mockEntries.push({
             id: `mock_${di}_${pi}_${Date.now()}`,
             teacherId: mockTeacher.id,
@@ -181,8 +227,8 @@ export function TeacherTimetableView() {
             subjectName: subj.name,
             subjectCode: subj.code,
             day: day,
-            startTime: `${8 + Math.floor(period / 2)}:${period % 2 === 0 ? '00' : '30'}`,
-            endTime: `${8 + Math.floor(period / 2) + 1}:${period % 2 === 0 ? '00' : '30'}`,
+            startTime: timeSlot.start,
+            endTime: timeSlot.end,
             periodNumber: period,
             cycle: cycle as 'first' | 'second',
             ratePerPeriod: cycle === 'first' ? 500 : 700,
@@ -194,34 +240,8 @@ export function TeacherTimetableView() {
       });
     });
 
-    if (mockEntries.length === 0) {
-      days.forEach((day, di) => {
-        const cls = CLASSES[di % CLASSES.length];
-        const subj = SUBJECTS[di % SUBJECTS.length];
-        mockEntries.push({
-          id: `fallback_${di}`,
-          teacherId: mockTeacher.id,
-          teacherName: mockTeacher.name,
-          classId: cls.id,
-          className: cls.name,
-          subjectId: subj.id,
-          subjectName: subj.name,
-          subjectCode: subj.code,
-          day: day,
-          startTime: '09:00',
-          endTime: '10:00',
-          periodNumber: 2,
-          cycle: 'first',
-          ratePerPeriod: 500,
-          room: 'Room 1',
-          academicYear: '2024-2025',
-          isActive: true
-        });
-      });
-    }
-
     const groupedByDay: Record<string, TimetableEntry[]> = {};
-    days.forEach(day => {
+    DAYS.slice(0, 5).forEach(day => {
       groupedByDay[day] = mockEntries
         .filter(e => e.day === day)
         .sort((a, b) => parseInt(a.startTime) - parseInt(b.startTime));
@@ -232,7 +252,7 @@ export function TeacherTimetableView() {
       firstCyclePeriods: mockEntries.filter(e => e.cycle === 'first').length,
       secondCyclePeriods: mockEntries.filter(e => e.cycle === 'second').length,
       totalPotentialEarnings: mockEntries.reduce((sum, e) => sum + e.ratePerPeriod, 0),
-      days: days
+      days: DAYS.slice(0, 5)
     };
 
     return {
@@ -264,9 +284,9 @@ export function TeacherTimetableView() {
     try {
       setLoading(true);
       setError(null);
-      
+
       const teacherId = user.id || user._id;
-      
+
       if (!teacherId) {
         throw new Error('No teacher ID found');
       }
@@ -274,17 +294,17 @@ export function TeacherTimetableView() {
       const response = await axios.get(`${API_BASE}/teacher/timetable`, {
         params: { teacherId }
       });
-      
+
       if (response.data.success) {
         const data = response.data.data;
-        
+
         const mappedTimetable = data.timetable.map((entry: any) => {
           const className = entry.classId?.className || entry.className || 'Unknown Class';
           const department = entry.classId?.department || '';
           const fullClassName = department ? `${className} (${department})` : className;
           const subjectName = entry.subjectId?.name || entry.subjectName || 'Unknown Subject';
           const subjectCode = entry.subjectId?.code || entry.subjectCode || '';
-          
+
           return {
             ...entry,
             className: fullClassName,
@@ -304,7 +324,7 @@ export function TeacherTimetableView() {
             const fullClassName = department ? `${className} (${department})` : className;
             const subjectName = entry.subjectId?.name || entry.subjectName || 'Unknown Subject';
             const subjectCode = entry.subjectId?.code || entry.subjectCode || '';
-            
+
             return {
               ...entry,
               className: fullClassName,
@@ -322,7 +342,6 @@ export function TeacherTimetableView() {
         };
 
         setTimetableData(mappedData);
-        setWeeklyData(null);
         setSelectedDay('');
         setDaySchedule([]);
         toast.success('Timetable loaded successfully');
@@ -333,7 +352,7 @@ export function TeacherTimetableView() {
       console.error('Error fetching timetable:', error);
       setError(error.message || 'Failed to load timetable');
       toast.error('Failed to load timetable. Using demo data...');
-      
+
       const mockData = generateMockData(user);
       setTimetableData(mockData);
     } finally {
@@ -341,133 +360,100 @@ export function TeacherTimetableView() {
     }
   }, [user]);
 
-  // Fetch weekly schedule
-  const fetchWeeklySchedule = useCallback(async () => {
-    if (!user || !timetableData) return;
-
-    try {
-      const teacherId = user.id || user._id;
-      const response = await axios.get(`${API_BASE}/teacher/weekly`, {
-        params: { teacherId }
-      });
-      
-      if (response.data.success) {
-        const data = response.data.data;
-        const mappedTodaySchedule = data.todaySchedule.map((entry: any) => ({
-          ...entry,
-          subjectName: entry.subjectId?.name || entry.subjectName || 'Unknown Subject',
-          subjectCode: entry.subjectId?.code || entry.subjectCode || '',
-          className: entry.classId?.className || entry.className || 'Unknown Class'
-        }));
-        setWeeklyData({
-          ...data,
-          todaySchedule: mappedTodaySchedule,
-          upcomingToday: mappedTodaySchedule,
-          nextPeriod: mappedTodaySchedule.length > 0 ? mappedTodaySchedule[0] : null
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching weekly schedule:', error);
-      const currentDay = new Date().toLocaleString('en-US', { weekday: 'long' });
-      const todaySchedule = timetableData.groupedByDay[currentDay] || [];
-      setWeeklyData({
-        teacher: timetableData.teacher,
-        currentDay: currentDay,
-        todaySchedule: todaySchedule,
-        upcomingToday: todaySchedule,
-        nextPeriod: todaySchedule.length > 0 ? todaySchedule[0] : null,
-        weeklySchedule: timetableData.timetable,
-        stats: {
-          totalPeriods: timetableData.timetable.length,
-          todayPeriods: todaySchedule.length,
-          remainingToday: todaySchedule.length
-        }
-      });
-    }
-  }, [user, timetableData]);
-
   // ============================================
-  // EXPORT TO PDF
+  // EXPORT TO PDF - MATRIX FORMAT
   // ============================================
 
-  const exportToPDF = () => {
+  const exportMatrixPDF = useCallback(() => {
     if (!timetableData) {
       toast.error('No timetable data to export');
       return;
     }
 
     setIsExporting(true);
-    
+
+    const { matrix, days, timeSlots } = buildMatrixTimetable(timetableData.timetable);
+
     const printContent = document.createElement('div');
     printContent.className = 'print-content';
     printContent.style.cssText = `
-      padding: 20px;
+      padding: 30px;
       font-family: Arial, sans-serif;
-      max-width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;
       background: white;
     `;
 
+    const classNames = Array.from(new Set(timetableData.timetable.map(e => e.className))).join(', ');
+
     let html = `
-      <div style="text-align: center; margin-bottom: 20px;">
-        <h1 style="color: #D4AF37; font-size: 20px; margin-bottom: 5px;">BELMON BILINGUAL HIGH SCHOOL</h1>
-        <p style="color: #666; font-size: 12px;">Teacher Timetable Report</p>
-        <p style="color: #999; font-size: 11px;">${timetableData.teacher.name} - ${timetableData.teacher.qualification || 'Teacher'}</p>
-        <hr style="border: 1px solid #D4AF37; margin: 10px 0;">
-      </div>
-    `;
+      <div style="background: white; padding: 20px; max-width: 1200px; margin: 0 auto;">
+        ${pdfOptions.includeHeader ? `
+        <div style="text-align: center; margin-bottom: 20px; border-bottom: 3px solid #000000; padding-bottom: 15px;">
+          <h1 style="font-size: 22px; margin: 0; color: #000000; font-weight: 800; letter-spacing: 2px;">BELMON BILINGUAL HIGH SCHOOL</h1>
+          <p style="font-size: 14px; color: #000000; margin: 5px 0 0 0; font-weight: 600;">TEACHER TIMETABLE</p>
+          <p style="font-size: 13px; color: #000000; margin: 3px 0 0 0; font-weight: 500;">${timetableData.teacher.name}</p>
+          <p style="font-size: 12px; color: #000000; margin: 2px 0 0 0;">${classNames || 'All Classes'}</p>
+        </div>
+        ` : ''}
 
-    html += `
-      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 20px;">
-        <div style="background: #f5f5f5; padding: 10px; border-radius: 8px; text-align: center;">
-          <p style="font-size: 10px; color: #666;">Total Periods</p>
-          <p style="font-size: 18px; font-weight: bold; color: #D4AF37;">${timetableData.stats.totalPeriods}</p>
-        </div>
-        <div style="background: #f5f5f5; padding: 10px; border-radius: 8px; text-align: center;">
-          <p style="font-size: 10px; color: #666;">1st Cycle</p>
-          <p style="font-size: 18px; font-weight: bold; color: #2563EB;">${timetableData.stats.firstCyclePeriods}</p>
-        </div>
-        <div style="background: #f5f5f5; padding: 10px; border-radius: 8px; text-align: center;">
-          <p style="font-size: 10px; color: #666;">2nd Cycle</p>
-          <p style="font-size: 18px; font-weight: bold; color: #7C3AED;">${timetableData.stats.secondCyclePeriods}</p>
-        </div>
-        <div style="background: #f5f5f5; padding: 10px; border-radius: 8px; text-align: center;">
-          <p style="font-size: 10px; color: #666;">Potential Earnings</p>
-          <p style="font-size: 18px; font-weight: bold; color: #D4AF37;">${timetableData.stats.totalPotentialEarnings.toLocaleString()} FRS</p>
-        </div>
-      </div>
-    `;
-
-    html += `
-      <div style="overflow-x: auto;">
-        <table style="width: 100%; border-collapse: collapse; font-size: 11px; min-width: 600px;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 11px; border: 2px solid #000000;">
           <thead>
-            <tr style="background: #D4AF37; color: white;">
-              <th style="padding: 4px; border: 1px solid #ddd; text-align: left;">Day</th>
-              <th style="padding: 4px; border: 1px solid #ddd; text-align: left;">Period</th>
-              <th style="padding: 4px; border: 1px solid #ddd; text-align: left;">Time</th>
-              <th style="padding: 4px; border: 1px solid #ddd; text-align: left;">Subject</th>
-              <th style="padding: 4px; border: 1px solid #ddd; text-align: left;">Class</th>
-              <th style="padding: 4px; border: 1px solid #ddd; text-align: left;">Cycle</th>
-              <th style="padding: 4px; border: 1px solid #ddd; text-align: left;">Rate</th>
-              <th style="padding: 4px; border: 1px solid #ddd; text-align: left;">Room</th>
+            <tr style="background: #000000; color: white;">
+              <th style="padding: 12px 10px; text-align: center; border: 1px solid #000000; font-size: 12px; font-weight: 700; letter-spacing: 0.5px; min-width: 100px; background: #000000; color: white;">
+                TIME
+              </th>
+              ${days.map((day) => `
+                <th style="padding: 12px 10px; text-align: center; border: 1px solid #000000; font-size: 12px; font-weight: 700; letter-spacing: 0.5px; min-width: 130px; background: #000000; color: white;">
+                  ${day}
+                </th>
+              `).join('')}
             </tr>
           </thead>
           <tbody>
     `;
 
-    const entries = timetableData.timetable;
+    timeSlots.forEach((slot, idx) => {
+      const isBreak = slot.isBreak;
+      const rowBg = isBreak ? 'background: #fef3c7;' : (idx % 2 === 0 ? 'background: #fafafa;' : 'background: white;');
+      const key = `${slot.start}|${slot.end}`;
 
-    entries.forEach((entry, index) => {
       html += `
-        <tr style="${index % 2 === 0 ? 'background: #fafafa;' : ''}">
-          <td style="padding: 4px; border: 1px solid #ddd;">${entry.day}</td>
-          <td style="padding: 4px; border: 1px solid #ddd;">${entry.periodNumber || index + 1}</td>
-          <td style="padding: 4px; border: 1px solid #ddd;">${entry.startTime} - ${entry.endTime}</td>
-          <td style="padding: 4px; border: 1px solid #ddd;">${entry.subjectName} ${entry.subjectCode ? `(${entry.subjectCode})` : ''}</td>
-          <td style="padding: 4px; border: 1px solid #ddd;">${entry.className}</td>
-          <td style="padding: 4px; border: 1px solid #ddd;">${entry.cycle === 'first' ? '1st' : '2nd'}</td>
-          <td style="padding: 4px; border: 1px solid #ddd;">${entry.ratePerPeriod} FRS</td>
-          <td style="padding: 4px; border: 1px solid #ddd;">${entry.room || '-'}</td>
+        <tr style="${rowBg}">
+          <td style="padding: 12px 10px; text-align: center; border: 1px solid #000000; font-weight: 700; font-size: 12px; ${isBreak ? 'color: #b45309; background: #fef3c7;' : ''}">
+            <div style="font-size: 14px; font-weight: 800;">${slot.label}</div>
+            ${!isBreak ? `<div style="font-size: 10px; color: #000000; font-weight: 400;">${slot.start} - ${slot.end}</div>` : '<div style="font-size: 10px; color: #b45309; font-weight: 600;">BREAK</div>'}
+          </td>
+          ${days.map((day) => {
+        const cell = matrix[day]?.[key];
+
+        if (!cell || cell.entries.length === 0) {
+          return `<td style="padding: 12px 10px; text-align: center; border: 1px solid #000000; ${isBreak ? 'background: #fef3c7;' : ''}">
+                <span style="color: #000000; font-size: 14px;">-</span>
+              </td>`;
+        }
+
+        if (isBreak) {
+          return `<td style="padding: 12px 10px; text-align: center; border: 1px solid #000000; background: #fef3c7; color: #000000; font-weight: 700; font-size: 11px; letter-spacing: 1px;">
+                BREAK
+              </td>`;
+        }
+
+        const entriesHtml = cell.entries.map((entry: TimetableEntry) => {
+          return `
+                <div style="padding: 4px 0; border-bottom: 1px solid #eee; last-child: border-bottom: none;">
+                  <div style="font-weight: 600; font-size: 11px; color: #1a1a1a;">${entry.subjectName}</div>
+                  ${pdfOptions.showTeacherNames ? `<div style="font-size: 9px; color: #000000; font-weight: 500;">${entry.teacherName}</div>` : ''}
+                  ${pdfOptions.showRoomNumbers && entry.room ? `<div style="font-size: 8px; color: #999;">${entry.room}</div>` : ''}
+                  <div style="font-size: 8px; color: #666;">${entry.className}</div>
+                </div>
+              `;
+        }).join('');
+
+        return `<td style="padding: 8px 6px; text-align: center; border: 1px solid #000000; vertical-align: middle; min-height: 60px;">
+              ${entriesHtml}
+            </td>`;
+      }).join('')}
         </tr>
       `;
     });
@@ -475,9 +461,16 @@ export function TeacherTimetableView() {
     html += `
           </tbody>
         </table>
-      </div>
-      <div style="margin-top: 15px; text-align: center; color: #999; font-size: 10px; border-top: 1px solid #ddd; padding-top: 10px;">
-        <p>Generated on ${new Date().toLocaleString()} • BELMON BILINGUAL HIGH SCHOOL</p>
+
+        <div style="text-align: center; margin-top: 15px; font-size: 9px; color: #000000; border-top: 1px solid #000000; padding-top: 10px;">
+          <span>Generated: ${new Date().toLocaleString()}</span>
+          <span style="margin: 0 15px;">|</span>
+          <span>BELMON BILINGUAL HIGH SCHOOL</span>
+          <span style="margin: 0 15px;">|</span>
+          <span>Page 1 of 1</span>
+          <span style="margin: 0 15px;">|</span>
+          <span style="font-weight: 600;">${timetableData.teacher.name}</span>
+        </div>
       </div>
     `;
 
@@ -502,9 +495,10 @@ export function TeacherTimetableView() {
       document.body.removeChild(printContent);
       document.head.removeChild(style);
       setIsExporting(false);
+      setShowPdfOptions(false);
       toast.success('PDF export initiated');
     }, 500);
-  };
+  }, [timetableData, pdfOptions]);
 
   // ============================================
   // EFFECTS
@@ -513,12 +507,6 @@ export function TeacherTimetableView() {
   useEffect(() => {
     fetchTeacherTimetable();
   }, [fetchTeacherTimetable]);
-
-  useEffect(() => {
-    if (timetableData && viewMode === 'weekly') {
-      fetchWeeklySchedule();
-    }
-  }, [timetableData, viewMode]);
 
   // ============================================
   // RENDER FUNCTIONS
@@ -540,7 +528,7 @@ export function TeacherTimetableView() {
       <div className="text-center py-8 sm:py-12 px-4">
         <AlertCircle className="size-12 sm:size-16 mx-auto text-red-500 mb-3 sm:mb-4" />
         <p className="text-red-600 font-medium text-sm sm:text-base">{error}</p>
-        <button 
+        <button
           onClick={() => {
             hasFetched.current = false;
             fetchTeacherTimetable();
@@ -558,7 +546,7 @@ export function TeacherTimetableView() {
       <div className="text-center py-8 sm:py-12 px-4">
         <Calendar className="size-12 sm:size-16 mx-auto text-black/20 mb-3 sm:mb-4" />
         <p className="text-black/60 text-sm sm:text-base">No timetable data available</p>
-        <button 
+        <button
           onClick={() => {
             hasFetched.current = false;
             fetchTeacherTimetable();
@@ -583,7 +571,7 @@ export function TeacherTimetableView() {
         </div>
       )}
 
-      {/* Teacher Profile Header - Mobile Optimized */}
+      {/* Teacher Profile Header */}
       <div className="bg-white rounded-2xl border border-stone-200 p-4 sm:p-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
           <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
@@ -595,43 +583,96 @@ export function TeacherTimetableView() {
               <p className="text-xs sm:text-sm text-black/60 truncate">{teacher.qualification || 'Teacher'}</p>
             </div>
           </div>
-          
+
           {/* View Toggle Buttons */}
           <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0">
             <div className="flex gap-1 w-full sm:w-auto">
-              <button 
-                onClick={() => { setViewMode('today'); fetchWeeklySchedule(); }}
+              <button
+                onClick={() => setViewMode('today')}
                 className={`flex-1 sm:flex-none px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition ${viewMode === 'today' ? 'bg-brand text-white' : 'bg-stone-100 hover:bg-stone-200'}`}
               >
                 Today
               </button>
-              <button 
-                onClick={() => { setViewMode('weekly'); fetchWeeklySchedule(); }}
+              <button
+                onClick={() => setViewMode('weekly')}
                 className={`flex-1 sm:flex-none px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition ${viewMode === 'weekly' ? 'bg-brand text-white' : 'bg-stone-100 hover:bg-stone-200'}`}
               >
                 Weekly
               </button>
-              <button 
+              <button
                 onClick={() => setViewMode('daily')}
                 className={`flex-1 sm:flex-none px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition ${viewMode === 'daily' ? 'bg-brand text-white' : 'bg-stone-100 hover:bg-stone-200'}`}
               >
                 Daily
               </button>
+              <button
+                onClick={() => setViewMode('matrix')}
+                className={`flex-1 sm:flex-none px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition ${viewMode === 'matrix' ? 'bg-brand text-white' : 'bg-stone-100 hover:bg-stone-200'}`}
+              >
+                <LayoutGrid className="size-3 sm:size-4 inline" />
+              </button>
             </div>
-            <button 
-              onClick={exportToPDF}
-              disabled={isExporting}
-              className="flex-1 sm:flex-none px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold bg-green-600 text-white hover:bg-green-700 transition flex items-center justify-center gap-1 sm:gap-2"
-            >
-              {isExporting ? (
-                <span className="animate-spin"> <Download className="size-3 sm:size-4" /></span>
-              ) : (
-                <>
-                  <Download className="size-3 sm:size-4" />
-                  <span className="hidden xs:inline">PDF</span>
-                </>
+
+            {/* PDF Download Button with Options */}
+            <div className="relative">
+              <button
+                onClick={exportMatrixPDF}
+                disabled={isExporting}
+                className="flex-1 sm:flex-none px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold bg-green-600 text-white hover:bg-green-700 transition flex items-center justify-center gap-1 sm:gap-2"
+              >
+                {isExporting ? (
+                  <span className="animate-spin"><Download className="size-3 sm:size-4" /></span>
+                ) : (
+                  <>
+                    <Download className="size-3 sm:size-4" />
+                    <span className="hidden xs:inline">PDF</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={() => setShowPdfOptions(!showPdfOptions)}
+                className="ml-0.5 sm:ml-1 p-1.5 sm:p-2 rounded-lg bg-green-600 text-white hover:bg-green-700 transition"
+              >
+                <ChevronDown className="size-3 sm:size-4" />
+              </button>
+
+              {showPdfOptions && (
+                <div className="absolute right-0 mt-1 w-64 bg-white rounded-xl border border-stone-200 shadow-lg z-20 p-4">
+                  <div className="space-y-3">
+                    <p className="text-xs font-bold text-black/50 uppercase tracking-wider">PDF Options</p>
+
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={pdfOptions.showTeacherNames}
+                        onChange={(e) => setPdfOptions(prev => ({ ...prev, showTeacherNames: e.target.checked }))}
+                        className="rounded border-stone-300 text-brand focus:ring-brand"
+                      />
+                      Show Teacher Names
+                    </label>
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={pdfOptions.showRoomNumbers}
+                        onChange={(e) => setPdfOptions(prev => ({ ...prev, showRoomNumbers: e.target.checked }))}
+                        className="rounded border-stone-300 text-brand focus:ring-brand"
+                      />
+                      Show Room Numbers
+                    </label>
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={pdfOptions.includeHeader}
+                        onChange={(e) => setPdfOptions(prev => ({ ...prev, includeHeader: e.target.checked }))}
+                        className="rounded border-stone-300 text-brand focus:ring-brand"
+                      />
+                      Include School Header
+                    </label>
+                  </div>
+                </div>
               )}
-            </button>
+            </div>
           </div>
         </div>
 
@@ -663,25 +704,24 @@ export function TeacherTimetableView() {
         </div>
       </div>
 
-      {/* View Content - Always Table Format */}
+      {/* View Content */}
       {viewMode === 'today' && (
-        <TodayView 
-          weeklyData={weeklyData} 
+        <TodayView
           groupedByDay={groupedByDay}
-          currentDay={weeklyData?.currentDay || new Date().toLocaleString('en-US', { weekday: 'long' })}
+          currentDay={new Date().toLocaleString('en-US', { weekday: 'long' })}
         />
       )}
 
       {viewMode === 'weekly' && (
-        <WeeklyView 
-          groupedByDay={groupedByDay} 
+        <WeeklyView
+          groupedByDay={groupedByDay}
           onDayClick={(day) => { setSelectedDay(day); }}
           timetableData={timetableData}
         />
       )}
 
       {viewMode === 'daily' && (
-        <DailyView 
+        <DailyView
           selectedDay={selectedDay}
           daySchedule={daySchedule}
           groupedByDay={groupedByDay}
@@ -692,20 +732,26 @@ export function TeacherTimetableView() {
           }}
         />
       )}
+
+      {viewMode === 'matrix' && (
+        <MatrixView
+          entries={timetableData.timetable}
+          teacherName={teacher.name}
+        />
+      )}
     </div>
   );
 }
 
 // ============================================
-// TODAY VIEW - Table Format on All Screens
+// TODAY VIEW
 // ============================================
 
-function TodayView({ weeklyData, groupedByDay, currentDay }: { 
-  weeklyData: WeeklyData | null; 
+function TodayView({ groupedByDay, currentDay }: {
   groupedByDay: Record<string, TimetableEntry[]>;
   currentDay: string;
 }) {
-  const todaySchedule = weeklyData?.todaySchedule || groupedByDay[currentDay] || [];
+  const todaySchedule = groupedByDay[currentDay] || [];
   const totalEarnings = todaySchedule.reduce((sum, entry) => sum + entry.ratePerPeriod, 0);
 
   if (todaySchedule.length === 0) {
@@ -727,7 +773,6 @@ function TodayView({ weeklyData, groupedByDay, currentDay }: {
         <span className="text-xs sm:text-sm text-black/60">{todaySchedule.length} periods</span>
       </div>
 
-      {/* Table View - Responsive with horizontal scroll on mobile */}
       <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[600px] sm:min-w-full">
@@ -778,49 +823,22 @@ function TodayView({ weeklyData, groupedByDay, currentDay }: {
 }
 
 // ============================================
-// WEEKLY VIEW - Table Format on All Screens
+// WEEKLY VIEW
 // ============================================
 
-function WeeklyView({ groupedByDay, onDayClick, timetableData }: { 
+function WeeklyView({ groupedByDay, onDayClick, timetableData }: {
   groupedByDay: Record<string, TimetableEntry[]>;
   onDayClick: (day: string) => void;
   timetableData: TimetableData;
 }) {
-  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
   const [selectedDay, setSelectedDay] = useState<string>('');
 
-  const displayEntries = selectedDay 
-    ? groupedByDay[selectedDay] || [] 
+  const displayEntries = selectedDay
+    ? groupedByDay[selectedDay] || []
     : days.flatMap(day => groupedByDay[day] || []);
 
   const totalEarnings = displayEntries.reduce((sum, entry) => sum + entry.ratePerPeriod, 0);
-
-  // Mobile Day Picker with horizontal scroll
-  const DayPicker = () => (
-    <div className="flex gap-1 overflow-x-auto pb-2 hide-scrollbar sm:hidden">
-      <button
-        onClick={() => setSelectedDay('')}
-        className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap ${!selectedDay ? 'bg-brand text-white' : 'bg-stone-100'}`}
-      >
-        All
-      </button>
-      {days.map(day => {
-        const hasEntries = (groupedByDay[day] || []).length > 0;
-        return (
-          <button
-            key={day}
-            onClick={() => {
-              setSelectedDay(day);
-              onDayClick(day);
-            }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap ${selectedDay === day ? 'bg-brand text-white' : 'bg-stone-100'} ${!hasEntries ? 'opacity-40' : ''}`}
-          >
-            {day.substring(0, 3)}
-          </button>
-        );
-      })}
-    </div>
-  );
 
   return (
     <div className="space-y-3 sm:space-y-4">
@@ -829,7 +847,6 @@ function WeeklyView({ groupedByDay, onDayClick, timetableData }: {
           <CalendarDays className="size-4 sm:size-5 text-brand" />
           <span className="text-sm sm:text-base">Weekly Schedule {selectedDay ? `- ${selectedDay}` : ''}</span>
         </h3>
-        {/* Desktop Day Buttons */}
         <div className="hidden sm:flex gap-1.5">
           <button
             onClick={() => setSelectedDay('')}
@@ -856,7 +873,29 @@ function WeeklyView({ groupedByDay, onDayClick, timetableData }: {
       </div>
 
       {/* Mobile Day Picker */}
-      <DayPicker />
+      <div className="flex gap-1 overflow-x-auto pb-2 hide-scrollbar sm:hidden">
+        <button
+          onClick={() => setSelectedDay('')}
+          className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap ${!selectedDay ? 'bg-brand text-white' : 'bg-stone-100'}`}
+        >
+          All
+        </button>
+        {days.map(day => {
+          const hasEntries = (groupedByDay[day] || []).length > 0;
+          return (
+            <button
+              key={day}
+              onClick={() => {
+                setSelectedDay(day);
+                onDayClick(day);
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap ${selectedDay === day ? 'bg-brand text-white' : 'bg-stone-100'} ${!hasEntries ? 'opacity-40' : ''}`}
+            >
+              {day.substring(0, 3)}
+            </button>
+          );
+        })}
+      </div>
 
       {displayEntries.length === 0 ? (
         <div className="text-center py-6 sm:py-8 text-black/40">
@@ -917,21 +956,21 @@ function WeeklyView({ groupedByDay, onDayClick, timetableData }: {
 }
 
 // ============================================
-// DAILY VIEW - Table Format on All Screens
+// DAILY VIEW
 // ============================================
 
-function DailyView({ 
-  selectedDay, 
-  daySchedule, 
+function DailyView({
+  selectedDay,
+  daySchedule,
   groupedByDay,
-  onDaySelect 
-}: { 
+  onDaySelect
+}: {
   selectedDay: string;
   daySchedule: TimetableEntry[];
   groupedByDay: Record<string, TimetableEntry[]>;
   onDaySelect: (day: string) => void;
 }) {
-  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
   const [currentDay, setCurrentDay] = useState(selectedDay || days[0]);
 
   const handleDaySelect = (day: string) => {
@@ -1014,6 +1053,97 @@ function DailyView({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ============================================
+// MATRIX VIEW - Time x Days Grid
+// ============================================
+
+function MatrixView({ entries, teacherName }: { entries: TimetableEntry[]; teacherName: string }) {
+  const { matrix, days, timeSlots } = buildMatrixTimetable(entries);
+
+  return (
+    <div className="space-y-3 sm:space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <h3 className="font-semibold text-base sm:text-lg flex items-center gap-2">
+          <LayoutGrid className="size-4 sm:size-5 text-brand" />
+          <span className="text-sm sm:text-base">Matrix View - {teacherName}</span>
+        </h3>
+        <span className="text-xs sm:text-sm text-black/60">{entries.length} periods</span>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[600px] sm:min-w-full">
+            <thead>
+              <tr className="bg-black text-white">
+                <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-center text-[10px] sm:text-xs font-bold uppercase tracking-wider border border-black" style={{ minWidth: '100px' }}>
+                  TIME
+                </th>
+                {days.map((day) => (
+                  <th key={day} className="px-2 sm:px-3 py-2 sm:py-2.5 text-center text-[10px] sm:text-xs font-bold uppercase tracking-wider border border-black">
+                    {day}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {timeSlots.map((slot, idx) => {
+                const isBreak = slot.isBreak;
+                const rowBg = isBreak ? 'bg-amber-50' : (idx % 2 === 0 ? 'bg-stone-50/50' : '');
+                const key = `${slot.start}|${slot.end}`;
+
+                return (
+                  <tr key={key} className={rowBg}>
+                    <td className={`px-2 sm:px-3 py-2 sm:py-2.5 text-center text-xs sm:text-sm font-bold border border-black ${isBreak ? 'text-amber-600' : ''}`}>
+                      <div>{slot.label}</div>
+                      {!isBreak && <div className="text-[8px] sm:text-[10px] font-normal text-black/60">{slot.start} - {slot.end}</div>}
+                    </td>
+                    {days.map((day) => {
+                      const cell = matrix[day]?.[key];
+
+                      if (!cell || cell.entries.length === 0) {
+                        return (
+                          <td key={`${day}-${key}`} className="px-2 sm:px-3 py-2 sm:py-2.5 text-center border border-black">
+                            <span className="text-black/40">-</span>
+                          </td>
+                        );
+                      }
+
+                      if (isBreak) {
+                        return (
+                          <td key={`${day}-${key}`} className="px-2 sm:px-3 py-2 sm:py-2.5 text-center border border-black bg-amber-100">
+                            <span className="text-xs font-bold text-amber-700">BREAK</span>
+                          </td>
+                        );
+                      }
+
+                      return (
+                        <td key={`${day}-${key}`} className="px-1 sm:px-2 py-1 sm:py-1.5 text-center border border-black">
+                          {cell.entries.map((entry: TimetableEntry) => (
+                            <div key={entry.id} className="mb-1 last:mb-0 p-1 rounded bg-white/80 border border-stone-200">
+                              <div className="font-semibold text-xs sm:text-sm">{entry.subjectName}</div>
+                              <div className="text-[8px] sm:text-[10px] text-black/60">{entry.teacherName}</div>
+                              <div className="text-[8px] sm:text-[10px] text-black/40">{entry.className}</div>
+                              {entry.room && <div className="text-[8px] sm:text-[10px] text-black/40">Room: {entry.room}</div>}
+                            </div>
+                          ))}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <div className="px-3 sm:px-4 py-2 sm:py-3 border-t border-stone-200 text-xs sm:text-sm text-black/40 flex flex-wrap justify-between">
+          <span>Total: {entries.length} periods</span>
+          <span>Teacher: {teacherName}</span>
+        </div>
+      </div>
     </div>
   );
 }
