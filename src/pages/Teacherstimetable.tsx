@@ -4,11 +4,10 @@ import {
   User, BookOpen, ChevronLeft, ChevronRight,
   AlertCircle, Check, Home, LogOut, Menu,
   Sun, Moon, Settings, Bell, Award, DollarSign, Download, Printer,
-  ChevronDown, ChevronUp, FileDown, LayoutGrid
+  ChevronDown, ChevronUp, FileDown, LayoutGrid, RefreshCw
 } from "lucide-react";
 import { toast } from "sonner";
 import axios from "axios";
-import html2canvas from "html2canvas-pro";
 
 const API_BASE = "https://belmon-backend.onrender.com/api";
 
@@ -362,10 +361,10 @@ export function TeacherTimetableView() {
   }, [user]);
 
   // ============================================
-  // EXPORT TO PDF USING HTML2CANVAS
+  // EXPORT TO PDF - Using window.print for simplicity
   // ============================================
 
-  const exportMatrixPDF = useCallback(async () => {
+  const exportMatrixPDF = useCallback(() => {
     if (!timetableData) {
       toast.error('No timetable data to export');
       return;
@@ -376,157 +375,152 @@ export function TeacherTimetableView() {
     try {
       const { matrix, days, timeSlots } = buildMatrixTimetable(timetableData.timetable);
 
-      // Create a container for the PDF content
-      const container = document.createElement('div');
-      container.style.position = 'fixed';
-      container.style.top = '0';
-      container.style.left = '-9999px';
-      container.style.width = '1200px';
-      container.style.backgroundColor = 'white';
-      container.style.padding = '40px';
-      container.style.zIndex = '9999';
-      container.style.fontFamily = 'Arial, sans-serif';
-      document.body.appendChild(container);
+      // Create a new window for printing
+      const printWindow = window.open('', '_blank', 'width=1200,height=800');
+      if (!printWindow) {
+        toast.error('Please allow popups for this site');
+        setIsExporting(false);
+        return;
+      }
 
       const classNames = Array.from(new Set(timetableData.timetable.map(e => e.className))).join(', ');
 
       let htmlContent = `
-        <div style="background: white; padding: 20px; max-width: 1200px; margin: 0 auto;">
-          ${pdfOptions.includeHeader ? `
-          <div style="text-align: center; margin-bottom: 20px; border-bottom: 3px solid #000000; padding-bottom: 15px;">
-            <h1 style="font-size: 22px; margin: 0; color: #000000; font-weight: 800; letter-spacing: 2px;">BELMON BILINGUAL HIGH SCHOOL</h1>
-            <p style="font-size: 14px; color: #000000; margin: 5px 0 0 0; font-weight: 600;">TEACHER TIMETABLE</p>
-            <p style="font-size: 13px; color: #000000; margin: 3px 0 0 0; font-weight: 500;">${timetableData.teacher.name}</p>
-            <p style="font-size: 12px; color: #000000; margin: 2px 0 0 0;">${classNames || 'All Classes'}</p>
-          </div>
-          ` : ''}
+<!DOCTYPE html>
+<html>
+<head>
+<title>Timetable - ${timetableData.teacher.name}</title>
+<style>
+  body { font-family: Arial, sans-serif; padding: 20px; background: white; }
+  .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; }
+  .header { text-align: center; margin-bottom: 20px; border-bottom: 3px solid #000; padding-bottom: 15px; }
+  .header h1 { font-size: 22px; margin: 0; color: #000; font-weight: 800; letter-spacing: 2px; }
+  .header p { font-size: 14px; color: #000; margin: 5px 0 0 0; font-weight: 600; }
+  .header .sub { font-size: 12px; color: #000; margin: 2px 0 0 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 11px; border: 2px solid #000; }
+  th { padding: 12px 10px; text-align: center; border: 1px solid #000; font-size: 12px; font-weight: 700; background: #000; color: white; }
+  td { padding: 8px 6px; text-align: center; border: 1px solid #000; vertical-align: middle; }
+  .break-row { background: #fef3c7; }
+  .break-label { color: #b45309; font-weight: 700; font-size: 12px; }
+  .empty-cell { color: #ccc; }
+  .entry-cell { padding: 4px 0; border-bottom: 1px solid #eee; }
+  .entry-cell:last-child { border-bottom: none; }
+  .subject { font-weight: 600; font-size: 11px; color: #1a1a1a; }
+  .teacher { font-size: 9px; color: #000; font-weight: 500; }
+  .room { font-size: 8px; color: #999; }
+  .class-name { font-size: 8px; color: #666; }
+  .footer { text-align: center; margin-top: 15px; font-size: 9px; color: #000; border-top: 1px solid #000; padding-top: 10px; }
+  @media print {
+    body { padding: 0; }
+    .no-print { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+`;
 
-          <table style="width: 100%; border-collapse: collapse; font-size: 11px; border: 2px solid #000000;">
-            <thead>
-              <tr style="background: #000000; color: white;">
-                <th style="padding: 12px 10px; text-align: center; border: 1px solid #000000; font-size: 12px; font-weight: 700; letter-spacing: 0.5px; min-width: 100px; background: #000000; color: white;">
-                  TIME
-                </th>
-                ${days.map((day) => `
-                  <th style="padding: 12px 10px; text-align: center; border: 1px solid #000000; font-size: 12px; font-weight: 700; letter-spacing: 0.5px; min-width: 130px; background: #000000; color: white;">
-                    ${day}
-                  </th>
-                `).join('')}
-              </tr>
-            </thead>
-            <tbody>
-      `;
+      if (pdfOptions.includeHeader) {
+        htmlContent += `
+<div class="header">
+  <h1>BELMON BILINGUAL HIGH SCHOOL</h1>
+  <p>TEACHER TIMETABLE</p>
+  <p class="sub">${timetableData.teacher.name}</p>
+  <p class="sub">${classNames || 'All Classes'}</p>
+</div>
+`;
+      }
+
+      htmlContent += `
+<table>
+  <thead>
+    <tr>
+      <th>TIME</th>
+      ${days.map(day => `<th>${day}</th>`).join('')}
+    </tr>
+  </thead>
+  <tbody>
+`;
 
       timeSlots.forEach((slot, idx) => {
         const isBreak = slot.isBreak;
-        const rowBg = isBreak ? 'background: #fef3c7;' : (idx % 2 === 0 ? 'background: #fafafa;' : 'background: white;');
+        const rowClass = isBreak ? 'break-row' : '';
         const key = `${slot.start}|${slot.end}`;
 
         htmlContent += `
-          <tr style="${rowBg}">
-            <td style="padding: 12px 10px; text-align: center; border: 1px solid #000000; font-weight: 700; font-size: 12px; ${isBreak ? 'color: #b45309; background: #fef3c7;' : ''}">
-              <div style="font-size: 14px; font-weight: 800;">${slot.label}</div>
-              ${!isBreak ? `<div style="font-size: 10px; color: #000000; font-weight: 400;">${slot.start} - ${slot.end}</div>` : '<div style="font-size: 10px; color: #b45309; font-weight: 600;">BREAK</div>'}
-            </td>
-            ${days.map((day) => {
+    <tr class="${rowClass}">
+      <td class="${isBreak ? 'break-label' : ''}">
+        <div style="font-size:14px;font-weight:800;">${slot.label}</div>
+        ${!isBreak ? `<div style="font-size:10px;font-weight:400;color:#000;">${slot.start} - ${slot.end}</div>` : '<div style="font-size:10px;font-weight:600;color:#b45309;">BREAK</div>'}
+      </td>
+`;
+
+        days.forEach(day => {
           const cell = matrix[day]?.[key];
 
           if (!cell || cell.entries.length === 0) {
-            return `<td style="padding: 12px 10px; text-align: center; border: 1px solid #000000; ${isBreak ? 'background: #fef3c7;' : ''}">
-                  <span style="color: #000000; font-size: 14px;">-</span>
-                </td>`;
+            htmlContent += `
+      <td><span class="empty-cell">-</span></td>
+`;
+            return;
           }
 
           if (isBreak) {
-            return `<td style="padding: 12px 10px; text-align: center; border: 1px solid #000000; background: #fef3c7; color: #000000; font-weight: 700; font-size: 11px; letter-spacing: 1px;">
-                  BREAK
-                </td>`;
+            htmlContent += `
+      <td style="background:#fef3c7;color:#b45309;font-weight:700;font-size:11px;letter-spacing:1px;">BREAK</td>
+`;
+            return;
           }
 
           const entriesHtml = cell.entries.map((entry: TimetableEntry) => {
             return `
-                  <div style="padding: 4px 0; border-bottom: 1px solid #eee; last-child: border-bottom: none;">
-                    <div style="font-weight: 600; font-size: 11px; color: #1a1a1a;">${entry.subjectName}</div>
-                    ${pdfOptions.showTeacherNames ? `<div style="font-size: 9px; color: #000000; font-weight: 500;">${entry.teacherName}</div>` : ''}
-                    ${pdfOptions.showRoomNumbers && entry.room ? `<div style="font-size: 8px; color: #999;">${entry.room}</div>` : ''}
-                    <div style="font-size: 8px; color: #666;">${entry.className}</div>
-                  </div>
-                `;
+        <div class="entry-cell">
+          <div class="subject">${entry.subjectName}</div>
+         <div class="class-name">${entry.className}</div>
+        </div>
+`;
           }).join('');
 
-          return `<td style="padding: 8px 6px; text-align: center; border: 1px solid #000000; vertical-align: middle; min-height: 60px;">
-                ${entriesHtml}
-              </td>`;
-        }).join('')}
-          </tr>
-        `;
+          htmlContent += `
+      <td>${entriesHtml}</td>
+`;
+        });
+
+        htmlContent += `
+    </tr>
+`;
       });
 
       htmlContent += `
-            </tbody>
-          </table>
+  </tbody>
+</table>
 
-          <div style="text-align: center; margin-top: 15px; font-size: 9px; color: #000000; border-top: 1px solid #000000; padding-top: 10px;">
-            <span>Generated: ${new Date().toLocaleString()}</span>
-            <span style="margin: 0 15px;">|</span>
-            <span>BELMON BILINGUAL HIGH SCHOOL</span>
-            <span style="margin: 0 15px;">|</span>
-            <span>Page 1 of 1</span>
-            <span style="margin: 0 15px;">|</span>
-            <span style="font-weight: 600;">${timetableData.teacher.name}</span>
-          </div>
-        </div>
-      `;
+<div class="footer">
+  <span>Generated: ${new Date().toLocaleString()}</span>
+  <span style="margin:0 15px;">|</span>
+  <span>BELMON BILINGUAL HIGH SCHOOL</span>
+  <span style="margin:0 15px;">|</span>
+  <span>Page 1 of 1</span>
+  <span style="margin:0 15px;">|</span>
+  <span style="font-weight:600;">${timetableData.teacher.name}</span>
+</div>
+</div>
 
-      container.innerHTML = htmlContent;
+<script>
+  window.onload = function() {
+    setTimeout(function() {
+      window.print();
+    }, 500);
+  };
+</script>
+</body>
+</html>
+`;
 
-      // Wait for rendering
-      await new Promise(resolve => setTimeout(resolve, 500));
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
 
-      // Capture with html2canvas
-      const canvas = await html2canvas(container, {
-        scale: 2.5,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-        logging: false,
-        width: container.scrollWidth,
-        height: container.scrollHeight,
-      });
-
-      // Remove container
-      document.body.removeChild(container);
-
-      // Create PDF
-      const { default: jsPDF } = await import("jspdf");
-      const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const margin = 10;
-      const usableWidth = pageWidth - margin * 2;
-      const usableHeight = pageHeight - margin * 2;
-
-      const imgData = canvas.toDataURL('image/jpeg', 0.98);
-      const imgWidth = usableWidth;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-      if (imgHeight <= usableHeight) {
-        const yOffset = (usableHeight - imgHeight) / 2;
-        pdf.addImage(imgData, 'JPEG', margin, margin + yOffset, imgWidth, imgHeight);
-      } else {
-        let remainingHeight = imgHeight;
-        let offset = 0;
-        let isFirstPage = true;
-        while (remainingHeight > 0) {
-          if (!isFirstPage) pdf.addPage();
-          pdf.addImage(imgData, 'JPEG', margin, margin - offset, imgWidth, imgHeight);
-          remainingHeight -= usableHeight;
-          offset += usableHeight;
-          isFirstPage = false;
-        }
-      }
-
-      pdf.save(`timetable_${timetableData.teacher.name.replace(/\s/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
-      toast.success('Timetable PDF downloaded successfully!');
+      toast.success('Timetable PDF opened for download. Please print to save as PDF.');
     } catch (error) {
       console.error('Error generating PDF:', error);
       toast.error('Failed to generate PDF. Please try again.');
