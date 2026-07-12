@@ -443,9 +443,7 @@ export function TeacherTimetableView() {
           return `
                 <div style="padding: 4px 0; border-bottom: 1px solid #eee; last-child: border-bottom: none;">
                   <div style="font-weight: 600; font-size: 11px; color: #1a1a1a;">${entry.subjectName}</div>
-                  ${pdfOptions.showTeacherNames ? `<div style="font-size: 9px; color: #000000; font-weight: 500;">${entry.teacherName}</div>` : ''}
-                  ${pdfOptions.showRoomNumbers && entry.room ? `<div style="font-size: 8px; color: #999;">${entry.room}</div>` : ''}
-                  <div style="font-size: 8px; color: #666;">${entry.className}</div>
+                 <div style="font-size: 8px; color: #666;">${entry.className}</div>
                 </div>
               `;
         }).join('');
