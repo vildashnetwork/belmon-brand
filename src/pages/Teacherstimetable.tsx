@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import axios from "axios";
+import html2canvas from "html2canvas-pro";
 
 const API_BASE = "https://belmon-backend.onrender.com/api";
 
@@ -148,7 +149,7 @@ function buildMatrixTimetable(entries: TimetableEntry[]): any {
 
   return {
     matrix,
-    days: DAYS.filter(d => d !== 'Saturday'), // Only show weekdays
+    days: DAYS.filter(d => d !== 'Saturday'),
     timeSlots: TIME_SLOTS,
   };
 }
@@ -361,10 +362,10 @@ export function TeacherTimetableView() {
   }, [user]);
 
   // ============================================
-  // EXPORT TO PDF - MATRIX FORMAT
+  // EXPORT TO PDF USING HTML2CANVAS
   // ============================================
 
-  const exportMatrixPDF = useCallback(() => {
+  const exportMatrixPDF = useCallback(async () => {
     if (!timetableData) {
       toast.error('No timetable data to export');
       return;
@@ -372,130 +373,167 @@ export function TeacherTimetableView() {
 
     setIsExporting(true);
 
-    const { matrix, days, timeSlots } = buildMatrixTimetable(timetableData.timetable);
+    try {
+      const { matrix, days, timeSlots } = buildMatrixTimetable(timetableData.timetable);
 
-    const printContent = document.createElement('div');
-    printContent.className = 'print-content';
-    printContent.style.cssText = `
-      padding: 30px;
-      font-family: Arial, sans-serif;
-      max-width: 1200px;
-      margin: 0 auto;
-      background: white;
-    `;
+      // Create a container for the PDF content
+      const container = document.createElement('div');
+      container.style.position = 'fixed';
+      container.style.top = '0';
+      container.style.left = '-9999px';
+      container.style.width = '1200px';
+      container.style.backgroundColor = 'white';
+      container.style.padding = '40px';
+      container.style.zIndex = '9999';
+      container.style.fontFamily = 'Arial, sans-serif';
+      document.body.appendChild(container);
 
-    const classNames = Array.from(new Set(timetableData.timetable.map(e => e.className))).join(', ');
+      const classNames = Array.from(new Set(timetableData.timetable.map(e => e.className))).join(', ');
 
-    let html = `
-      <div style="background: white; padding: 20px; max-width: 1200px; margin: 0 auto;">
-        ${pdfOptions.includeHeader ? `
-        <div style="text-align: center; margin-bottom: 20px; border-bottom: 3px solid #000000; padding-bottom: 15px;">
-          <h1 style="font-size: 22px; margin: 0; color: #000000; font-weight: 800; letter-spacing: 2px;">BELMON BILINGUAL HIGH SCHOOL</h1>
-          <p style="font-size: 14px; color: #000000; margin: 5px 0 0 0; font-weight: 600;">TEACHER TIMETABLE</p>
-          <p style="font-size: 13px; color: #000000; margin: 3px 0 0 0; font-weight: 500;">${timetableData.teacher.name}</p>
-          <p style="font-size: 12px; color: #000000; margin: 2px 0 0 0;">${classNames || 'All Classes'}</p>
-        </div>
-        ` : ''}
+      let htmlContent = `
+        <div style="background: white; padding: 20px; max-width: 1200px; margin: 0 auto;">
+          ${pdfOptions.includeHeader ? `
+          <div style="text-align: center; margin-bottom: 20px; border-bottom: 3px solid #000000; padding-bottom: 15px;">
+            <h1 style="font-size: 22px; margin: 0; color: #000000; font-weight: 800; letter-spacing: 2px;">BELMON BILINGUAL HIGH SCHOOL</h1>
+            <p style="font-size: 14px; color: #000000; margin: 5px 0 0 0; font-weight: 600;">TEACHER TIMETABLE</p>
+            <p style="font-size: 13px; color: #000000; margin: 3px 0 0 0; font-weight: 500;">${timetableData.teacher.name}</p>
+            <p style="font-size: 12px; color: #000000; margin: 2px 0 0 0;">${classNames || 'All Classes'}</p>
+          </div>
+          ` : ''}
 
-        <table style="width: 100%; border-collapse: collapse; font-size: 11px; border: 2px solid #000000;">
-          <thead>
-            <tr style="background: #000000; color: white;">
-              <th style="padding: 12px 10px; text-align: center; border: 1px solid #000000; font-size: 12px; font-weight: 700; letter-spacing: 0.5px; min-width: 100px; background: #000000; color: white;">
-                TIME
-              </th>
-              ${days.map((day) => `
-                <th style="padding: 12px 10px; text-align: center; border: 1px solid #000000; font-size: 12px; font-weight: 700; letter-spacing: 0.5px; min-width: 130px; background: #000000; color: white;">
-                  ${day}
+          <table style="width: 100%; border-collapse: collapse; font-size: 11px; border: 2px solid #000000;">
+            <thead>
+              <tr style="background: #000000; color: white;">
+                <th style="padding: 12px 10px; text-align: center; border: 1px solid #000000; font-size: 12px; font-weight: 700; letter-spacing: 0.5px; min-width: 100px; background: #000000; color: white;">
+                  TIME
                 </th>
-              `).join('')}
-            </tr>
-          </thead>
-          <tbody>
-    `;
-
-    timeSlots.forEach((slot, idx) => {
-      const isBreak = slot.isBreak;
-      const rowBg = isBreak ? 'background: #fef3c7;' : (idx % 2 === 0 ? 'background: #fafafa;' : 'background: white;');
-      const key = `${slot.start}|${slot.end}`;
-
-      html += `
-        <tr style="${rowBg}">
-          <td style="padding: 12px 10px; text-align: center; border: 1px solid #000000; font-weight: 700; font-size: 12px; ${isBreak ? 'color: #b45309; background: #fef3c7;' : ''}">
-            <div style="font-size: 14px; font-weight: 800;">${slot.label}</div>
-            ${!isBreak ? `<div style="font-size: 10px; color: #000000; font-weight: 400;">${slot.start} - ${slot.end}</div>` : '<div style="font-size: 10px; color: #b45309; font-weight: 600;">BREAK</div>'}
-          </td>
-          ${days.map((day) => {
-        const cell = matrix[day]?.[key];
-
-        if (!cell || cell.entries.length === 0) {
-          return `<td style="padding: 12px 10px; text-align: center; border: 1px solid #000000; ${isBreak ? 'background: #fef3c7;' : ''}">
-                <span style="color: #000000; font-size: 14px;">-</span>
-              </td>`;
-        }
-
-        if (isBreak) {
-          return `<td style="padding: 12px 10px; text-align: center; border: 1px solid #000000; background: #fef3c7; color: #000000; font-weight: 700; font-size: 11px; letter-spacing: 1px;">
-                BREAK
-              </td>`;
-        }
-
-        const entriesHtml = cell.entries.map((entry: TimetableEntry) => {
-          return `
-                <div style="padding: 4px 0; border-bottom: 1px solid #eee; last-child: border-bottom: none;">
-                  <div style="font-weight: 600; font-size: 11px; color: #1a1a1a;">${entry.subjectName}</div>
-                 <div style="font-size: 8px; color: #666;">${entry.className}</div>
-                </div>
-              `;
-        }).join('');
-
-        return `<td style="padding: 8px 6px; text-align: center; border: 1px solid #000000; vertical-align: middle; min-height: 60px;">
-              ${entriesHtml}
-            </td>`;
-      }).join('')}
-        </tr>
+                ${days.map((day) => `
+                  <th style="padding: 12px 10px; text-align: center; border: 1px solid #000000; font-size: 12px; font-weight: 700; letter-spacing: 0.5px; min-width: 130px; background: #000000; color: white;">
+                    ${day}
+                  </th>
+                `).join('')}
+              </tr>
+            </thead>
+            <tbody>
       `;
-    });
 
-    html += `
-          </tbody>
-        </table>
+      timeSlots.forEach((slot, idx) => {
+        const isBreak = slot.isBreak;
+        const rowBg = isBreak ? 'background: #fef3c7;' : (idx % 2 === 0 ? 'background: #fafafa;' : 'background: white;');
+        const key = `${slot.start}|${slot.end}`;
 
-        <div style="text-align: center; margin-top: 15px; font-size: 9px; color: #000000; border-top: 1px solid #000000; padding-top: 10px;">
-          <span>Generated: ${new Date().toLocaleString()}</span>
-          <span style="margin: 0 15px;">|</span>
-          <span>BELMON BILINGUAL HIGH SCHOOL</span>
-          <span style="margin: 0 15px;">|</span>
-          <span>Page 1 of 1</span>
-          <span style="margin: 0 15px;">|</span>
-          <span style="font-weight: 600;">${timetableData.teacher.name}</span>
+        htmlContent += `
+          <tr style="${rowBg}">
+            <td style="padding: 12px 10px; text-align: center; border: 1px solid #000000; font-weight: 700; font-size: 12px; ${isBreak ? 'color: #b45309; background: #fef3c7;' : ''}">
+              <div style="font-size: 14px; font-weight: 800;">${slot.label}</div>
+              ${!isBreak ? `<div style="font-size: 10px; color: #000000; font-weight: 400;">${slot.start} - ${slot.end}</div>` : '<div style="font-size: 10px; color: #b45309; font-weight: 600;">BREAK</div>'}
+            </td>
+            ${days.map((day) => {
+          const cell = matrix[day]?.[key];
+
+          if (!cell || cell.entries.length === 0) {
+            return `<td style="padding: 12px 10px; text-align: center; border: 1px solid #000000; ${isBreak ? 'background: #fef3c7;' : ''}">
+                  <span style="color: #000000; font-size: 14px;">-</span>
+                </td>`;
+          }
+
+          if (isBreak) {
+            return `<td style="padding: 12px 10px; text-align: center; border: 1px solid #000000; background: #fef3c7; color: #000000; font-weight: 700; font-size: 11px; letter-spacing: 1px;">
+                  BREAK
+                </td>`;
+          }
+
+          const entriesHtml = cell.entries.map((entry: TimetableEntry) => {
+            return `
+                  <div style="padding: 4px 0; border-bottom: 1px solid #eee; last-child: border-bottom: none;">
+                    <div style="font-weight: 600; font-size: 11px; color: #1a1a1a;">${entry.subjectName}</div>
+                    ${pdfOptions.showTeacherNames ? `<div style="font-size: 9px; color: #000000; font-weight: 500;">${entry.teacherName}</div>` : ''}
+                    ${pdfOptions.showRoomNumbers && entry.room ? `<div style="font-size: 8px; color: #999;">${entry.room}</div>` : ''}
+                    <div style="font-size: 8px; color: #666;">${entry.className}</div>
+                  </div>
+                `;
+          }).join('');
+
+          return `<td style="padding: 8px 6px; text-align: center; border: 1px solid #000000; vertical-align: middle; min-height: 60px;">
+                ${entriesHtml}
+              </td>`;
+        }).join('')}
+          </tr>
+        `;
+      });
+
+      htmlContent += `
+            </tbody>
+          </table>
+
+          <div style="text-align: center; margin-top: 15px; font-size: 9px; color: #000000; border-top: 1px solid #000000; padding-top: 10px;">
+            <span>Generated: ${new Date().toLocaleString()}</span>
+            <span style="margin: 0 15px;">|</span>
+            <span>BELMON BILINGUAL HIGH SCHOOL</span>
+            <span style="margin: 0 15px;">|</span>
+            <span>Page 1 of 1</span>
+            <span style="margin: 0 15px;">|</span>
+            <span style="font-weight: 600;">${timetableData.teacher.name}</span>
+          </div>
         </div>
-      </div>
-    `;
+      `;
 
-    printContent.innerHTML = html;
+      container.innerHTML = htmlContent;
 
-    const style = document.createElement('style');
-    style.textContent = `
-      @media print {
-        body * { visibility: hidden; }
-        .print-content, .print-content * { visibility: visible; }
-        .print-content { position: absolute; left: 0; top: 0; width: 100%; background: white; }
-        table { page-break-inside: auto; }
-        tr { page-break-inside: avoid; page-break-after: auto; }
-        @page { margin: 10mm; }
+      // Wait for rendering
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Capture with html2canvas
+      const canvas = await html2canvas(container, {
+        scale: 2.5,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+        width: container.scrollWidth,
+        height: container.scrollHeight,
+      });
+
+      // Remove container
+      document.body.removeChild(container);
+
+      // Create PDF
+      const { default: jsPDF } = await import("jspdf");
+      const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 10;
+      const usableWidth = pageWidth - margin * 2;
+      const usableHeight = pageHeight - margin * 2;
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.98);
+      const imgWidth = usableWidth;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+      if (imgHeight <= usableHeight) {
+        const yOffset = (usableHeight - imgHeight) / 2;
+        pdf.addImage(imgData, 'JPEG', margin, margin + yOffset, imgWidth, imgHeight);
+      } else {
+        let remainingHeight = imgHeight;
+        let offset = 0;
+        let isFirstPage = true;
+        while (remainingHeight > 0) {
+          if (!isFirstPage) pdf.addPage();
+          pdf.addImage(imgData, 'JPEG', margin, margin - offset, imgWidth, imgHeight);
+          remainingHeight -= usableHeight;
+          offset += usableHeight;
+          isFirstPage = false;
+        }
       }
-    `;
-    document.head.appendChild(style);
-    document.body.appendChild(printContent);
 
-    setTimeout(() => {
-      window.print();
-      document.body.removeChild(printContent);
-      document.head.removeChild(style);
+      pdf.save(`timetable_${timetableData.teacher.name.replace(/\s/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
+      toast.success('Timetable PDF downloaded successfully!');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error('Failed to generate PDF. Please try again.');
+    } finally {
       setIsExporting(false);
       setShowPdfOptions(false);
-      toast.success('PDF export initiated');
-    }, 500);
+    }
   }, [timetableData, pdfOptions]);
 
   // ============================================
@@ -611,26 +649,24 @@ export function TeacherTimetableView() {
               </button>
             </div>
 
-            {/* PDF Download Button with Options */}
+            {/* Download My Timetable Button */}
             <div className="relative">
               <button
                 onClick={exportMatrixPDF}
                 disabled={isExporting}
-                className="flex-1 sm:flex-none px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold bg-green-600 text-white hover:bg-green-700 transition flex items-center justify-center gap-1 sm:gap-2"
+                className="flex-1 sm:flex-none px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-bold bg-brand text-white hover:bg-brand/90 transition flex items-center justify-center gap-2 shadow-lg shadow-brand/30 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isExporting ? (
-                  <span className="animate-spin"><Download className="size-3 sm:size-4" /></span>
+                  <span className="animate-spin"><RefreshCw className="size-4 sm:size-5" /></span>
                 ) : (
-                  <>
-                    <Download className="size-3 sm:size-4" />
-                    <span className="hidden xs:inline">PDF</span>
-                  </>
+                  <Download className="size-4 sm:size-5" />
                 )}
+                <span className="text-xs sm:text-sm font-semibold">Download My Timetable</span>
               </button>
 
               <button
                 onClick={() => setShowPdfOptions(!showPdfOptions)}
-                className="ml-0.5 sm:ml-1 p-1.5 sm:p-2 rounded-lg bg-green-600 text-white hover:bg-green-700 transition"
+                className="ml-0.5 sm:ml-1 p-1.5 sm:p-2 rounded-lg bg-brand/80 text-white hover:bg-brand transition"
               >
                 <ChevronDown className="size-3 sm:size-4" />
               </button>
