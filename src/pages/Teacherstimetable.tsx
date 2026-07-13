@@ -435,7 +435,7 @@ export function TeacherTimetableView() {
 <table>
   <thead>
     <tr>
-      <th style="font-weight:bold; color:#000000;">TIME</th>
+      <th style="font-weight:bold; color:#fff;">TIME</th>
       ${days.map(day => `<th style="font-weight:bold; color:#fff;">${day}</th>`).join('')}
     </tr>
   </thead>
