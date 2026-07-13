@@ -435,8 +435,8 @@ export function TeacherTimetableView() {
 <table>
   <thead>
     <tr>
-      <th>TIME</th>
-      ${days.map(day => `<th>${day}</th>`).join('')}
+      <th style="font-weight:bold; color:#000000;">TIME</th>
+      ${days.map(day => `<th style="font-weight:bold; color:#000000;">${day}</th>`).join('')}
     </tr>
   </thead>
   <tbody>
@@ -451,7 +451,7 @@ export function TeacherTimetableView() {
     <tr class="${rowClass}">
       <td class="${isBreak ? 'break-label' : ''}">
         <div style="font-size:14px;font-weight:800;">${slot.label}</div>
-        ${!isBreak ? `<div style="font-size:10px;font-weight:400;color:#000;">${slot.start} - ${slot.end}</div>` : '<div style="font-size:10px;font-weight:600;color:#b45309;">BREAK</div>'}
+        ${!isBreak ? `<div style="font-size:10px;font-weight:400;color:#000000;">${slot.start} - ${slot.end}</div>` : '<div style="font-size:10px;font-weight:600;color:#b45309;">BREAK</div>'}
       </td>
 `;
 
@@ -467,7 +467,7 @@ export function TeacherTimetableView() {
 
           if (isBreak) {
             htmlContent += `
-      <td style="background:#fef3c7;color:#b45309;font-weight:700;font-size:11px;letter-spacing:1px;">BREAK</td>
+      <td style="background:#fef3c7;color:#000000;font-weight:700;font-size:11px;letter-spacing:1px;">BREAK</td>
 `;
             return;
           }
@@ -476,7 +476,7 @@ export function TeacherTimetableView() {
             return `
         <div class="entry-cell">
           <div class="subject">${entry.subjectName}</div>
-         <div class="class-name" style="color: #00000; font-weight:bold;">${entry.className}</div>
+         <div class="class-name" style="color: #000000; font-weight:bold;">${entry.className}</div>
         </div>
 `;
           }).join('');
