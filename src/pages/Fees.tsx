@@ -257,11 +257,11 @@ export function FeesPage() {
         <title>Students with Outstanding Fees</title>
         <style>
           body { font-family: Arial, sans-serif; padding: 20px; }
-          h1 { color: #333; border-bottom: 2px solid #ccc; padding-bottom: 10px; }
+          h1 { color: #333; border-bottom: 2px solid #000000; padding-bottom: 10px; }
           .summary { margin: 20px 0; padding: 15px; background: #f5f5f5; border-radius: 8px; }
           table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-          th { background-color: #f5f5f5; padding: 10px; text-align: left; border: 1px solid #ddd; }
-          td { padding: 8px 10px; border: 1px solid #ddd; }
+          th { background-color: #f5f5f5; padding: 10px; text-align: left; border: 1px solid #000000; }
+          td { padding: 8px 10px; border: 1px solid #000000; }
           .total { margin-top: 20px; font-weight: bold; }
           .fee-due { color: #dc3545; font-weight: bold; }
           .status-badge { 
@@ -270,8 +270,8 @@ export function FeesPage() {
             font-size: 11px; 
             font-weight: bold;
           }
-          .status-owing { background: #fee2e2; color: #dc2626; }
-          .status-partial { background: #fef3c7; color: #d97706; }
+          .status-owing { background: #fee2e2; color: #000000; }
+          .status-partial { background: #fef3c7; color: #000000; }
         </style>
       </head>
       <body>
@@ -315,8 +315,8 @@ export function FeesPage() {
           <td>${s.parentName}</td>
           <td>${s.parentPhone}</td>
           <td>${s.feesPaid.toLocaleString()}</td>
-          <td class="fee-due">${s.feesDue.toLocaleString()}</td>
-          <td><span class="status-badge ${statusClass}">${status}</span></td>
+          <td class="fee-due" style="color: #000000; font-weight: bold;">${s.feesDue.toLocaleString()}</td>
+          <td><span class="status-badge ${statusClass}" style="color: #000000; font-weight: bold;">${status}</span></td>
         </tr>
       `;
     });

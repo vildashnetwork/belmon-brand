@@ -403,12 +403,12 @@ export function StudentsPage() {
         <title>Students with Outstanding Fees</title>
         <style>
           body { font-family: Arial, sans-serif; padding: 20px; }
-          h1 { color: #333; border-bottom: 2px solid #ccc; padding-bottom: 10px; }
+          h1 { color: #333; border-bottom: 2px solid #000000; padding-bottom: 10px; }
           table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-          th { background-color: #f5f5f5; padding: 10px; text-align: left; border: 1px solid #ddd; }
-          td { padding: 8px 10px; border: 1px solid #ddd; }
+          th { background-color: #f5f5f5; padding: 10px; text-align: left; border: 1px solid #000000; }
+          td { padding: 8px 10px; border: 1px solid #000000; }
           .total { margin-top: 20px; font-weight: bold; }
-          .fee-due { color: #dc3545; font-weight: bold; }
+          .fee-due { color: #000000; font-weight: bold; }
         </style>
       </head>
       <body>
@@ -439,8 +439,8 @@ export function StudentsPage() {
           <td>${classObj?.className || ""}</td>
           <td>${s.parentName}</td>
           <td>${s.parentPhone}</td>
-          <td>${s.feesPaid.toLocaleString()}</td>
-          <td class="fee-due">${s.feesDue.toLocaleString()}</td>
+          <td style="color: #000000; font-weight: bold;">${s.feesPaid.toLocaleString()}</td>
+          <td class="fee-due" style="color: #000000; font-weight: bold;">${s.feesDue.toLocaleString()}</td>
         </tr>
       `;
     });
