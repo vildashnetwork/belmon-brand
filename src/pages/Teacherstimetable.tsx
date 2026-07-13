@@ -402,13 +402,13 @@ export function TeacherTimetableView() {
   td { padding: 8px 6px; text-align: center; border: 1px solid #000; vertical-align: middle; }
   .break-row { background: #fef3c7; }
   .break-label { color: #b45309; font-weight: 700; font-size: 12px; }
-  .empty-cell { color: #ccc; }
-  .entry-cell { padding: 4px 0; border-bottom: 1px solid #eee; }
+  .empty-cell { color: #000000; }
+  .entry-cell { padding: 4px 0; border-bottom: 1px solid #000000; }
   .entry-cell:last-child { border-bottom: none; }
   .subject { font-weight: 600; font-size: 11px; color: #1a1a1a; }
   .teacher { font-size: 9px; color: #000; font-weight: 500; }
-  .room { font-size: 8px; color: #999; }
-  .class-name { font-size: 8px; color: #666; }
+  .room { font-size: 8px; color: #000000; }
+  .class-name { font-size: 8px; color: #000000; }
   .footer { text-align: center; margin-top: 15px; font-size: 9px; color: #000; border-top: 1px solid #000; padding-top: 10px; }
   @media print {
     body { padding: 0; }
@@ -476,7 +476,7 @@ export function TeacherTimetableView() {
             return `
         <div class="entry-cell">
           <div class="subject">${entry.subjectName}</div>
-         <div class="class-name">${entry.className}</div>
+         <div class="class-name" style="color: #00000; font-weight:bold;">${entry.className}</div>
         </div>
 `;
           }).join('');
