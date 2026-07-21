@@ -101,7 +101,7 @@ const CLASSES = [
 // TIME SLOTS CONFIGURATION
 // ============================================
 
-const PDF_SCHEDULE = [
+const TIME_SLOTS = [
   { type: "period" as const, label: "1", start: "08:00", end: "08:45" },
   { type: "period" as const, label: "2", start: "08:45", end: "09:30" },
   { type: "period" as const, label: "3", start: "09:30", end: "10:15" },
