@@ -1,4 +1,3 @@
-
 // import { useState, useEffect, useMemo, useCallback, useRef, memo } from "react";
 // import {
 //   Calendar, Clock, Users, Plus, Pencil, Trash2, Search, X,
@@ -19,11 +18,12 @@
 
 // // Real period schedule used only for the PDF grid layout
 // const PDF_SCHEDULE = [
-//   { type: "period" as const, label: "1", start: "08:15", end: "09:00" },
-//   { type: "period" as const, label: "2", start: "09:00", end: "09:45" },
-//   { type: "period" as const, label: "3", start: "09:45", end: "10:30" },
-//   { type: "break" as const, label: "BREAK TIME", start: "10:30", end: "11:00" },
-//   { type: "period" as const, label: "4", start: "11:00", end: "12:00" },
+//   { type: "period" as const, label: "1", start: "08:00", end: "08:45" },
+//   { type: "period" as const, label: "2", start: "08:45", end: "09:30" },
+//   { type: "period" as const, label: "3", start: "09:30", end: "10:15" },
+//   { type: "break" as const, label: "BREAK TIME", start: "10:15", end: "10:30" },
+//   { type: "period" as const, label: "4", start: "10:30", end: "11:15" },
+//   { type: "period" as const, label: "5", start: "11:15", end: "12:00" },
 // ];
 // const PDF_GRID_DAYS = DAYS.slice(0, 5);
 
@@ -103,10 +103,6 @@
 // // ============================================
 // // TIME SANITIZATION HELPERS
 // // ============================================
-// // These are the single source of truth for making sure every TimetableEntry
-// // that reaches the UI, localStorage cache, or the API always has a valid
-// // startTime/endTime pair. They're applied at every entry point: API mapping,
-// // cache loading, modal init/submit, and API payload prep.
 
 // const TIME_RE = /^([01]?\d|2[0-3]):([0-5]\d)$/;
 
@@ -116,16 +112,10 @@
 
 // function addOneHourCapped(time: string): string {
 //   const [h, m] = time.split(":").map(Number);
-//   const endHour = Math.min(h + 1, 23); // never overflow past 23:xx
+//   const endHour = Math.min(h + 1, 23);
 //   return `${String(endHour).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 // }
 
-// /**
-//  * Only auto-repairs clearly "unset" end times (missing, malformed, or the
-//  * '00:00' placeholder some old records have). It deliberately does NOT
-//  * silently fix a genuine case where the user typed a real end time that's
-//  * just before the start time - that should still surface as a validation error.
-//  */
 // function sanitizeTimes(startTimeRaw: any, endTimeRaw: any): { startTime: string; endTime: string } {
 //   const startTime = isValidTimeString(startTimeRaw) ? startTimeRaw : "08:00";
 //   const endCandidate = isValidTimeString(endTimeRaw) ? endTimeRaw : null;
@@ -269,11 +259,74 @@
 //   });
 // }
 
+// // ============================================
+// // MULTI-SUBJECT HELPERS
+// // ============================================
+
+// /**
+//  * Groups entries by class and time slot, combining multiple subjects
+//  * into a single display string like "Math/Physics"
+//  */
+// function groupEntriesByClassAndTime(entries: TimetableEntry[]): Map<string, TimetableEntry[]> {
+//   const grouped = new Map<string, TimetableEntry[]>();
+
+//   entries.forEach(entry => {
+//     // Group by classId + day + startTime
+//     const key = `${entry.classId}|${entry.day}|${entry.startTime}`;
+//     if (!grouped.has(key)) {
+//       grouped.set(key, []);
+//     }
+//     grouped.get(key)!.push(entry);
+//   });
+
+//   return grouped;
+// }
+
+// /**
+//  * Combines multiple entries for the same class and time into a single display entry
+//  * with combined subject names like "Math/Physics"
+//  */
+// function combineMultiSubjectEntries(entries: TimetableEntry[]): TimetableEntry[] {
+//   const grouped = groupEntriesByClassAndTime(entries);
+//   const combined: TimetableEntry[] = [];
+
+//   grouped.forEach((group) => {
+//     if (group.length === 1) {
+//       // Only one entry, use as is
+//       combined.push(group[0]);
+//     } else {
+//       // Multiple entries for same class/time - combine them
+//       const first = group[0];
+//       const subjectNames = group.map(e => e.subjectName).join('/');
+//       const teacherNames = group.map(e => e.teacherName).join('/');
+//       const subjectCodes = group.map(e => e.subjectCode || '').filter(Boolean).join('/');
+
+//       // Use the first entry as base but combine subjects and teachers
+//       combined.push({
+//         ...first,
+//         subjectName: subjectNames,
+//         subjectCode: subjectCodes || undefined,
+//         teacherName: teacherNames,
+//         // Combine room if they're all the same
+//         room: group.every(e => e.room === group[0].room) ? group[0].room : group.map(e => e.room || '?').join('/'),
+//         // Keep the ID of the first entry but note it's combined
+//         id: first.id,
+//         _id: first._id,
+//       });
+//     }
+//   });
+
+//   return combined;
+// }
+
 // function buildPdfGrid(entries: TimetableEntry[], classList: Class[]): PdfGridRow[] {
+//   // First combine multi-subject entries
+//   const combinedEntries = combineMultiSubjectEntries(entries);
+
 //   const classNames = classList.map((c) => c.className);
 
 //   const index = new Map<string, TimetableEntry>();
-//   entries.forEach((e) => {
+//   combinedEntries.forEach((e) => {
 //     index.set(`${e.day}|${e.startTime}|${e.className}`, e);
 //   });
 
@@ -287,7 +340,11 @@
 //       const cells: Record<string, PdfGridCell | null> = {};
 //       classNames.forEach((cls) => {
 //         const entry = index.get(`${day}|${slot.start}|${cls}`);
-//         cells[cls] = entry ? { subjectName: entry.subjectName, teacherName: entry.teacherName, room: entry.room } : null;
+//         cells[cls] = entry ? {
+//           subjectName: entry.subjectName,
+//           teacherName: entry.teacherName,
+//           room: entry.room
+//         } : null;
 //       });
 //       rows.push({ day, period: slot.label, duration: `${slot.start} - ${slot.end}`, isBreak: false, cells });
 //     });
@@ -297,8 +354,11 @@
 // }
 
 // function buildPaginatedPdfGrids(entries: TimetableEntry[], classList: Class[]): PdfGridRow[][] {
+//   // First combine multi-subject entries
+//   const combinedEntries = combineMultiSubjectEntries(entries);
+
 //   const uniqueClassNames = new Set<string>();
-//   entries.forEach(e => {
+//   combinedEntries.forEach(e => {
 //     const className = e.className || 'Unknown';
 //     uniqueClassNames.add(className);
 //   });
@@ -306,7 +366,7 @@
 //   const classNames = Array.from(uniqueClassNames).sort();
 
 //   const index = new Map<string, TimetableEntry>();
-//   entries.forEach((e) => {
+//   combinedEntries.forEach((e) => {
 //     const key = `${e.day}|${e.startTime}|${e.className}`;
 //     index.set(key, e);
 //   });
@@ -353,8 +413,10 @@
 // }
 
 // function buildMatrixTimetable(entries: TimetableEntry[], classList: Class[]): any {
+//   // First combine multi-subject entries
+//   const combinedEntries = combineMultiSubjectEntries(entries);
 //   const uniqueClasses = dedupeClassesByName(classList);
-//   const timeSlots = ["08:15", "09:00", "09:45", "10:30", "11:00"];
+//   const timeSlots = ["08:00", "08:45", "09:30", "10:15", "11:15"];
 //   const labels = ["1", "2", "3", "BREAK", "4"];
 //   const isBreak = [false, false, false, true, false];
 
@@ -372,7 +434,7 @@
 //     });
 //   });
 
-//   entries.forEach(entry => {
+//   combinedEntries.forEach(entry => {
 //     if (matrix[entry.day] && matrix[entry.day][entry.startTime]) {
 //       matrix[entry.day][entry.startTime].entries.push(entry);
 //     }
@@ -486,9 +548,8 @@
 // const CycleBadge = memo(function CycleBadge({ cycle }: { cycle: "first" | "second" }) {
 //   return (
 //     <span
-//       className={`text-xs px-2 py-1 rounded-full font-bold ${
-//         cycle === "first" ? "bg-blue-100 text-blue-700" : "bg-purple-100 text-purple-700"
-//       }`}
+//       className={`text-xs px-2 py-1 rounded-full font-bold ${cycle === "first" ? "bg-blue-100 text-blue-700" : "bg-purple-100 text-purple-700"
+//         }`}
 //     >
 //       {cycle === "first" ? "1st Cycle" : "2nd Cycle"}
 //     </span>
@@ -563,11 +624,6 @@
 //       const hasCache = cachedEntries && cachedEntries.length > 0;
 
 //       if (hasCache) {
-//         // IMPORTANT FIX: cached entries were previously trusted as-is, so any
-//         // entry saved before the time-sanitization fix existed (e.g. with
-//         // endTime === '00:00') would keep coming back broken forever. Running
-//         // every cached entry through sanitizeEntry (and re-persisting the
-//         // result) permanently repairs old data on the very first load.
 //         const sanitizedCached: TimetableEntry[] = (cachedEntries as TimetableEntry[]).map(sanitizeEntry);
 //         setEntries(sanitizedCached);
 //         setTeachers(cachedTeachers || []);
@@ -708,7 +764,16 @@
 //       if (error.response) {
 //         console.error('Response data:', error.response.data);
 //         console.error('Response status:', error.response.status);
-//         throw new Error(error.response.data?.message || `Server error: ${error.response.status}`);
+
+//         // ✅ Parse the error message from the server
+//         const errorMsg = error.response.data?.message || `Server error: ${error.response.status}`;
+
+//         // ✅ Check if it's a teacher conflict
+//         if (errorMsg.includes('already assigned to')) {
+//           throw new Error(errorMsg);
+//         }
+
+//         throw new Error(errorMsg);
 //       } else if (error.request) {
 //         console.error('No response received');
 //         throw new Error('No response from server');
@@ -727,9 +792,6 @@
 //         return;
 //       }
 
-//       // FIX: sanitize before validating/sending. This repairs stale/placeholder
-//       // '00:00' or missing endTime values while still catching genuine
-//       // ordering mistakes the user actually made.
 //       const { startTime, endTime } = sanitizeTimes(entry.startTime, entry.endTime);
 //       const sanitizedEntry: TimetableEntry = { ...entry, startTime, endTime };
 
@@ -740,25 +802,34 @@
 
 //       setIsSaving(true);
 //       try {
-//         const isExisting = entries.some((e) =>
-//           e.id === sanitizedEntry.id ||
-//           e._id === sanitizedEntry.id ||
-//           e.id === sanitizedEntry._id ||
-//           e._id === sanitizedEntry._id ||
-//           (e._id && sanitizedEntry._id && e._id.toString() === sanitizedEntry._id.toString())
-//         );
+//         // ✅ FIX: Check if this is an existing entry by ID only
+//         const isNew = !sanitizedEntry._id &&
+//           (!sanitizedEntry.id || sanitizedEntry.id.startsWith('entry_'));
+
+//         const isExisting = !isNew && entries.some((e) => {
+//           const matchById =
+//             e.id === sanitizedEntry.id ||
+//             e._id === sanitizedEntry.id ||
+//             e.id === sanitizedEntry._id ||
+//             e._id === sanitizedEntry._id ||
+//             (e._id && sanitizedEntry._id && e._id.toString() === sanitizedEntry._id.toString());
+//           return matchById;
+//         });
 
 //         const apiData = mapForApi(sanitizedEntry);
 //         let updatedEntries: TimetableEntry[];
 
 //         if (isExisting) {
-//           const existingEntry = entries.find((e) =>
-//             e.id === sanitizedEntry.id ||
-//             e._id === sanitizedEntry.id ||
-//             e.id === sanitizedEntry._id ||
-//             e._id === sanitizedEntry._id ||
-//             (e._id && sanitizedEntry._id && e._id.toString() === sanitizedEntry._id.toString())
-//           );
+//           // ✅ UPDATE: Only update if entry exists by ID
+//           const existingEntry = entries.find((e) => {
+//             const matchById =
+//               e.id === sanitizedEntry.id ||
+//               e._id === sanitizedEntry.id ||
+//               e.id === sanitizedEntry._id ||
+//               e._id === sanitizedEntry._id ||
+//               (e._id && sanitizedEntry._id && e._id.toString() === sanitizedEntry._id.toString());
+//             return matchById;
+//           });
 
 //           const apiId = existingEntry?._id || existingEntry?.id || sanitizedEntry._id || sanitizedEntry.id;
 
@@ -797,24 +868,65 @@
 //             throw new Error(result?.message || "Failed to update");
 //           }
 //         } else {
-//           const result = await syncToAPI("POST", `${API_BASE}/timetable`, apiData);
+//           // ✅ CREATE NEW: Always create a new entry
+//           try {
+//             // ✅ FIX: Only check teacher conflict if the teacher is different from any existing entry at this time
+//             // We should NOT check class conflict because multiple teachers can teach same class at same time
+//             const teacherConflict = entries.find((e) =>
+//               e.teacherId === sanitizedEntry.teacherId &&
+//               e.day === sanitizedEntry.day &&
+//               e.startTime === sanitizedEntry.startTime &&
+//               e.academicYear === sanitizedEntry.academicYear &&
+//               // ✅ CRITICAL: Skip the entry being edited (if it has an ID)
+//               e.id !== sanitizedEntry.id &&
+//               e._id !== sanitizedEntry._id
+//             );
 
-//           if (result?.success && result?.data) {
-//             const savedData = result.data;
-//             const savedEntry = {
-//               ...sanitizedEntry,
-//               id: savedData._id || savedData.id || `entry_${Date.now()}`,
-//               _id: savedData._id || savedData.id,
-//               ratePerPeriod: savedData.ratePerPeriod || sanitizedEntry.ratePerPeriod,
-//             };
+//             if (teacherConflict) {
+//               // Get the teacher name for the conflict
+//               const conflictTeacher = teachers.find(t => t._id === teacherConflict.teacherId);
+//               toast.error(
+//                 `⚠️ Teacher "${conflictTeacher?.name || teacherConflict.teacherName}" is already assigned to ${teacherConflict.className} at this time on ${sanitizedEntry.day}.\n\n` +
+//                 `To add multiple subjects to the same class at the same time, use a different teacher.`
+//               );
+//               setIsSaving(false);
+//               return;
+//             }
 
-//             updatedEntries = [...entries, savedEntry];
-//             setEntries(updatedEntries);
-//             setStats(calculateStats(updatedEntries));
-//             saveToLocalStorage("entries", updatedEntries);
-//             toast.success("Timetable entry added");
-//           } else {
-//             throw new Error(result?.message || "Failed to create entry");
+//             const result = await syncToAPI("POST", `${API_BASE}/timetable`, apiData);
+
+//             if (result?.success && result?.data) {
+//               const savedData = result.data;
+//               const savedEntry = {
+//                 ...sanitizedEntry,
+//                 id: savedData._id || savedData.id || `entry_${Date.now()}`,
+//                 _id: savedData._id || savedData.id,
+//                 ratePerPeriod: savedData.ratePerPeriod || sanitizedEntry.ratePerPeriod,
+//               };
+
+//               updatedEntries = [...entries, savedEntry];
+//               setEntries(updatedEntries);
+//               setStats(calculateStats(updatedEntries));
+//               saveToLocalStorage("entries", updatedEntries);
+//               toast.success("Timetable entry added successfully");
+//             } else {
+//               throw new Error(result?.message || "Failed to create entry");
+//             }
+//           } catch (error: any) {
+//             // Check if it's a duplicate/conflict error from server
+//             if (error.message?.includes("already has a period") ||
+//               error.message?.includes("already assigned")) {
+//               toast.error(
+//                 `⚠️ ${error.message}\n\n` +
+//                 `This teacher already has a period at this time.\n` +
+//                 `To add multiple subjects to the same class at the same time,\n` +
+//                 `please use a different teacher for each subject.`
+//               );
+//             } else {
+//               throw error;
+//             }
+//             setIsSaving(false);
+//             return;
 //           }
 //         }
 
@@ -823,12 +935,21 @@
 //       } catch (error) {
 //         console.error("Error saving timetable:", error);
 //         toast.error(error instanceof Error ? error.message : "Failed to save entry");
+//         if (error.message?.includes('already assigned to')) {
+//           toast.error(`⚠️ ${error.message}`);
+//         } else {
+//           toast.error(error instanceof Error ? error.message : "Failed to save entry");
+//         }
+//         setIsSaving(false);
+//         return;
 //       } finally {
 //         setIsSaving(false);
 //       }
 //     },
-//     [entries, isSaving, syncToAPI]
+//     [entries, isSaving, syncToAPI, teachers]
 //   );
+
+
 
 //   const handleDeleteEntry = useCallback(
 //     async (id: string) => {
@@ -875,8 +996,6 @@
 //     async (newEntries: TimetableEntry[]) => {
 //       if (isSaving) return;
 
-//       // FIX: sanitize each row's times before filtering/sending so bulk rows
-//       // with blank or placeholder end times don't get rejected by the server.
 //       const sanitizedNewEntries = newEntries.map(sanitizeEntry);
 //       const validEntries = sanitizedNewEntries.filter((e) => e.teacherId && e.classId && e.subjectId);
 //       if (validEntries.length === 0) {
@@ -976,8 +1095,10 @@
 //   // ============================================
 
 //   const exportToCSV = useCallback(() => {
+//     // Combine multi-subject entries for CSV export
+//     const combinedEntries = combineMultiSubjectEntries(filteredEntries);
 //     const headers = ["Day", "Start Time", "End Time", "Teacher", "Class", "Subject", "Cycle", "Rate", "Room"];
-//     const rows = filteredEntries.map((e) => [
+//     const rows = combinedEntries.map((e) => [
 //       e.day,
 //       e.startTime,
 //       e.endTime,
@@ -1083,17 +1204,17 @@
 //                 <span style="font-size: 11px; font-weight: 700; color: #000000; text-transform: uppercase; letter-spacing: 1px;">BREAK TIME</span>
 //               </td>
 //             ` : uniqueClasses.map((c) => {
-//               const cell = row.cells[c.className];
-//               return `
+//           const cell = row.cells[c.className];
+//           return `
 //                 <td style="padding: 6px 8px; text-align: center; border: 1px solid #000000;">
 //                   ${cell ? `
-//                     <div style="font-weight: 500;">${cell.subjectName}</div>
+//                     <div style="font-weight: 500; font-size: ${cell.subjectName.includes('/') ? '10px' : '11px'};">${cell.subjectName}</div>
 //                     <div style="font-size: 9px; color: #666;">${cell.teacherName}</div>
 //                     ${cell.room ? `<div style="font-size: 8px; color: #999;">${cell.room}</div>` : ''}
 //                   ` : '<span style="color: #ccc;">—</span>'}
 //                 </td>
 //               `;
-//             }).join('')}
+//         }).join('')}
 //             <td style="padding: 6px 8px; text-align: center; font-size: 10px; border: 1px solid #ddd; white-space: nowrap;">
 //               ${row.duration}
 //             </td>
@@ -1250,34 +1371,34 @@
 //               <div style="font-size: 9px; color: #000000; font-weight: 400;">${time}</div>
 //             </td>
 //             ${days.map((day) => {
-//               const slot = matrix[day]?.[time];
-//               if (!slot || slot.entries.length === 0) {
-//                 return `<td style="padding: 10px 12px; text-align: center; border: 1px solid #000000; ${isBreakRow ? 'background: #fef3c7;' : ''}">
+//           const slot = matrix[day]?.[time];
+//           if (!slot || slot.entries.length === 0) {
+//             return `<td style="padding: 10px 12px; text-align: center; border: 1px solid #000000; ${isBreakRow ? 'background: #fef3c7;' : ''}">
 //                   <span style="color: #000000; font-size: 14px;">-</span>
 //                 </td>`;
-//               }
-//               if (isBreakRow) {
-//                 return `<td style="padding: 10px 12px; text-align: center; border: 1px solid #000000; background: #fef3c7; color: #000000; font-weight: 700; font-size: 11px; letter-spacing: 1px;">
+//           }
+//           if (isBreakRow) {
+//             return `<td style="padding: 10px 12px; text-align: center; border: 1px solid #000000; background: #fef3c7; color: #000000; font-weight: 700; font-size: 11px; letter-spacing: 1px;">
 //                   BREAK
 //                 </td>`;
-//               }
+//           }
 
-//               const entriesHtml = slot.entries.map(entry => {
-//                 const classObj = classes.find(c => c._id === entry.classId);
-//                 const fullClassName = classObj?.department ? `${classObj.className} ${classObj.department}` : entry.className;
+//           const entriesHtml = slot.entries.map(entry => {
+//             const classObj = classes.find(c => c._id === entry.classId);
+//             const fullClassName = classObj?.department ? `${classObj.className} ${classObj.department}` : entry.className;
 
-//                 return `
+//             return `
 //                   <div style="padding: 4px 0; last-child: border-bottom: none;">
-//                     <div style="font-weight: 600; font-size: 12px; color: #1a1a1a;">${entry.subjectName}</div>
+//                     <div style="font-weight: 600; font-size: ${entry.subjectName.includes('/') ? '11px' : '12px'}; color: #1a1a1a;">${entry.subjectName}</div>
 //                     <div style="font-size: 9px; color: #000000; margin-top: 1px;">${entry.teacherName}</div>
 //                   </div>
 //                 `;
-//               }).join('');
+//           }).join('');
 
-//               return `<td style="padding: 6px 8px; text-align: center; border: 1px solid #000000; vertical-align: middle;">
+//           return `<td style="padding: 6px 8px; text-align: center; border: 1px solid #000000; vertical-align: middle;">
 //                 ${entriesHtml}
 //               </td>`;
-//             }).join('')}
+//         }).join('')}
 //           </tr>
 //         `;
 //       });
@@ -1459,16 +1580,16 @@
 //                   <span style="font-size: 11px; font-weight: bold; color: #000000;  text-transform: uppercase; letter-spacing: 1px;">BREAK TIME</span>
 //                 </td>
 //               ` : pageClassList.map((cls) => {
-//                 const cell = row.cells[cls];
-//                 return `
+//             const cell = row.cells[cls];
+//             return `
 //                   <td style="padding: 6px 8px; text-align: center; border: 1px solid #000000;">
 //                     ${cell ? `
-//                       <div style="font-weight: 500;">${cell.subjectName}</div>
+//                       <div style="font-weight: 500; font-size: ${cell.subjectName.includes('/') ? '10px' : '11px'};">${cell.subjectName}</div>
 //                       <div style="font-size: 9px; color: #000000; font-weight: bold;">${cell.teacherName}</div>
 //                     ` : '<span style="color: #000000;">—</span>'}
 //                   </td>
 //                 `;
-//               }).join('')}
+//           }).join('')}
 //               <td style="padding: 6px 8px; text-align: center; font-size: 10px; border: 1px solid #000000; white-space: nowrap;">
 //                 ${row.duration}
 //               </td>
@@ -1796,15 +1917,27 @@
 //         )}
 //       </div>
 
-//       {/* View Content */}
+//       {/* View Content - Using combined entries for display */}
 //       {viewMode === "table" && (
-//         <TableView entries={filteredEntries} onEdit={handleEditRequest} onDelete={handleDeleteEntry} canEdit={true} />
+//         <TableView
+//           entries={combineMultiSubjectEntries(filteredEntries)}
+//           onEdit={handleEditRequest}
+//           onDelete={handleDeleteEntry}
+//           canEdit={true}
+//         />
 //       )}
 //       {viewMode === "grid" && (
-//         <GridView entries={filteredEntries} onEdit={handleEditRequest} onDelete={handleDeleteEntry} />
+//         <GridView
+//           entries={combineMultiSubjectEntries(filteredEntries)}
+//           onEdit={handleEditRequest}
+//           onDelete={handleDeleteEntry}
+//         />
 //       )}
 //       {viewMode === "calendar" && (
-//         <CalendarView entries={filteredEntries} onEdit={handleEditRequest} />
+//         <CalendarView
+//           entries={combineMultiSubjectEntries(filteredEntries)}
+//           onEdit={handleEditRequest}
+//         />
 //       )}
 
 //       {/* Modals */}
@@ -1916,7 +2049,9 @@
 //                       {entry.subjectCode && (
 //                         <span className="text-xs bg-stone-100 px-1.5 py-0.5 rounded font-mono">{entry.subjectCode}</span>
 //                       )}
-//                       {entry.subjectName}
+//                       <span className={entry.subjectName.includes('/') ? 'text-amber-700 font-semibold' : ''}>
+//                         {entry.subjectName}
+//                       </span>
 //                     </div>
 //                   </td>
 //                   <td className="px-4 py-3">
@@ -2006,7 +2141,9 @@
 //               </div>
 //               <div className="flex items-center gap-2 text-sm">
 //                 <BookOpen className="size-4 text-black/40" />
-//                 <span>{entry.subjectName}</span>
+//                 <span className={entry.subjectName.includes('/') ? 'text-amber-700 font-semibold' : ''}>
+//                   {entry.subjectName}
+//                 </span>
 //               </div>
 //               {entry.room && (
 //                 <div className="flex items-center gap-2 text-sm">
@@ -2081,12 +2218,13 @@
 //                         <div
 //                           key={entry.id}
 //                           onClick={() => onEdit(entry)}
-//                           className={`text-xs p-1.5 rounded-lg cursor-pointer hover:opacity-80 transition ${
-//                             entry.cycle === "first" ? "bg-blue-50 border border-blue-200" : "bg-purple-50 border border-purple-200"
-//                           }`}
+//                           className={`text-xs p-1.5 rounded-lg cursor-pointer hover:opacity-80 transition ${entry.cycle === "first" ? "bg-blue-50 border border-blue-200" : "bg-purple-50 border border-purple-200"
+//                             }`}
 //                         >
 //                           <div className="font-semibold truncate">{entry.teacherName}</div>
-//                           <div className="truncate text-black/60">{entry.subjectName}</div>
+//                           <div className={`truncate ${entry.subjectName.includes('/') ? 'text-amber-700 font-bold' : 'text-black/60'}`}>
+//                             {entry.subjectName}
+//                           </div>
 //                           <div className="truncate text-black/40 text-[10px]">{entry.className}</div>
 //                           <div className="text-[10px] font-bold text-brand mt-0.5">{entry.ratePerPeriod} FRS</div>
 //                         </div>
@@ -2110,6 +2248,9 @@
 //         </div>
 //         <div className="flex items-center gap-2">
 //           <span className="text-black/40">Click on any period to edit</span>
+//         </div>
+//         <div className="flex items-center gap-2">
+//           <span className="text-amber-700 font-semibold">Multi-subject</span>
 //         </div>
 //       </div>
 //     </div>
@@ -2135,24 +2276,20 @@
 //   onSave: (entry: TimetableEntry) => void;
 //   onCancel: () => void;
 // }) {
-//   // FIX: sanitize on first render too, in case `initial` (an entry being
-//   // edited) arrives with a stale/placeholder endTime.
 //   const [form, setForm] = useState<TimetableEntry>(() => sanitizeEntry(initial));
 //   const [saving, setSaving] = useState(false);
 
-//   // FIX: re-sanitize whenever a different entry is passed in (e.g. switching
-//   // which row is being edited), so an invalid endTime from the data never
-//   // silently lands in the form.
 //   useEffect(() => {
 //     setForm(sanitizeEntry(initial));
 //   }, [initial]);
 
 //   const set = <K extends keyof TimetableEntry>(k: K, v: TimetableEntry[K]) => setForm((f) => ({ ...f, [k]: v }));
 
+//   // ✅ FIX: Properly detect if this is a new entry or editing an existing one
+//   // A new entry has an ID that starts with 'entry_' or has no _id
+//   const isNewEntry = !initial._id && !initial.id?.startsWith('6a') || initial.id?.startsWith('entry_');
+
 //   const handleSubmit = () => {
-//     // One more pass in case startTime changed but endTime is still a leftover
-//     // placeholder. This only auto-fixes '00:00'/missing values - a genuine
-//     // ordering mistake the user typed themselves still gets rejected below.
 //     const { startTime, endTime } = sanitizeTimes(form.startTime, form.endTime);
 
 //     if (startTime >= endTime) {
@@ -2176,7 +2313,7 @@
 //         <div className="flex items-center justify-between mb-5">
 //           <h3 className="font-display font-bold text-xl flex items-center gap-3">
 //             <Calendar className="size-6 text-brand" />
-//             {initial.teacherName ? "Edit Timetable Entry" : "Add New Period"}
+//             {isNewEntry ? "Add New Period" : "Edit Timetable Entry"}
 //           </h3>
 //           <button onClick={onCancel} className="text-black/40 hover:text-black/70">
 //             <X className="size-5" />
@@ -2317,7 +2454,21 @@
 //           </div>
 //         </div>
 
-//         <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-stone-100">
+//         {/* Info box about multi-subject support */}
+//         <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+//           <p className="text-sm text-amber-800">
+//             <span className="font-bold">💡 Multi-Subject Support:</span>
+//             <br />
+//             You can add multiple subjects to the same class at the same time.
+//             Just make sure each subject has a <span className="font-bold">different teacher</span>.
+//             <br />
+//             <span className="text-xs text-amber-600 mt-1 block">
+//               Example: Form 4A can have both Math (Teacher A) and Physics (Teacher B) at 08:00-09:00
+//             </span>
+//           </p>
+//         </div>
+
+//         <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-stone-100">
 //           <button onClick={onCancel} className="px-4 py-2.5 rounded-xl border border-stone-200 text-sm font-semibold hover:bg-stone-50 transition" disabled={saving}>
 //             Cancel
 //           </button>
@@ -2332,7 +2483,7 @@
 //                 Saving...
 //               </span>
 //             ) : (
-//               "Save Entry"
+//               isNewEntry ? "Add Period" : "Update Entry"
 //             )}
 //           </button>
 //         </div>
@@ -2388,8 +2539,6 @@
 //     }
 
 //     const formattedEntries = validEntries.map((e) => {
-//       // FIX: sanitize each bulk row's times so blank/placeholder values don't
-//       // get rejected by the server validation.
 //       const { startTime, endTime } = sanitizeTimes(e.startTime, e.endTime);
 //       return {
 //         ...e,
@@ -2524,6 +2673,9 @@
 //             </button>
 //           </div>
 //         </div>
+//         <p className="text-xs text-amber-600 mt-3">
+//           💡 Multiple subjects can be assigned to the same class at the same time. They will appear as "Subject1/Subject2" in the timetable.
+//         </p>
 //       </div>
 //     </div>
 //   );
@@ -2651,28 +2803,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 import { useState, useEffect, useMemo, useCallback, useRef, memo } from "react";
 import {
   Calendar, Clock, Users, Plus, Pencil, Trash2, Search, X,
@@ -2691,13 +2821,14 @@ const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"
 const CALENDAR_TIME_SLOTS = Array.from({ length: 8 }, (_, i) => `${8 + i}:00`);
 const CYCLE_RATES = { first: 500, second: 700 } as const;
 
-// Real period schedule used only for the PDF grid layout
+// Real period schedule used for the PDF grid layout and matrix
 const PDF_SCHEDULE = [
-  { type: "period" as const, label: "1", start: "08:15", end: "09:00" },
-  { type: "period" as const, label: "2", start: "09:00", end: "09:45" },
-  { type: "period" as const, label: "3", start: "09:45", end: "10:30" },
-  { type: "break" as const, label: "BREAK TIME", start: "10:30", end: "11:00" },
-  { type: "period" as const, label: "4", start: "11:00", end: "12:00" },
+  { type: "period" as const, label: "1", start: "08:00", end: "08:45" },
+  { type: "period" as const, label: "2", start: "08:45", end: "09:30" },
+  { type: "period" as const, label: "3", start: "09:30", end: "10:15" },
+  { type: "break" as const, label: "BREAK TIME", start: "10:15", end: "10:30" },
+  { type: "period" as const, label: "4", start: "10:30", end: "11:15" },
+  { type: "period" as const, label: "5", start: "11:15", end: "12:00" },
 ];
 const PDF_GRID_DAYS = DAYS.slice(0, 5);
 
@@ -2937,15 +3068,10 @@ function flattenUnsupportedColors(root: HTMLElement) {
 // MULTI-SUBJECT HELPERS
 // ============================================
 
-/**
- * Groups entries by class and time slot, combining multiple subjects
- * into a single display string like "Math/Physics"
- */
 function groupEntriesByClassAndTime(entries: TimetableEntry[]): Map<string, TimetableEntry[]> {
   const grouped = new Map<string, TimetableEntry[]>();
 
   entries.forEach(entry => {
-    // Group by classId + day + startTime
     const key = `${entry.classId}|${entry.day}|${entry.startTime}`;
     if (!grouped.has(key)) {
       grouped.set(key, []);
@@ -2956,34 +3082,25 @@ function groupEntriesByClassAndTime(entries: TimetableEntry[]): Map<string, Time
   return grouped;
 }
 
-/**
- * Combines multiple entries for the same class and time into a single display entry
- * with combined subject names like "Math/Physics"
- */
 function combineMultiSubjectEntries(entries: TimetableEntry[]): TimetableEntry[] {
   const grouped = groupEntriesByClassAndTime(entries);
   const combined: TimetableEntry[] = [];
 
   grouped.forEach((group) => {
     if (group.length === 1) {
-      // Only one entry, use as is
       combined.push(group[0]);
     } else {
-      // Multiple entries for same class/time - combine them
       const first = group[0];
       const subjectNames = group.map(e => e.subjectName).join('/');
       const teacherNames = group.map(e => e.teacherName).join('/');
       const subjectCodes = group.map(e => e.subjectCode || '').filter(Boolean).join('/');
 
-      // Use the first entry as base but combine subjects and teachers
       combined.push({
         ...first,
         subjectName: subjectNames,
         subjectCode: subjectCodes || undefined,
         teacherName: teacherNames,
-        // Combine room if they're all the same
         room: group.every(e => e.room === group[0].room) ? group[0].room : group.map(e => e.room || '?').join('/'),
-        // Keep the ID of the first entry but note it's combined
         id: first.id,
         _id: first._id,
       });
@@ -2994,9 +3111,7 @@ function combineMultiSubjectEntries(entries: TimetableEntry[]): TimetableEntry[]
 }
 
 function buildPdfGrid(entries: TimetableEntry[], classList: Class[]): PdfGridRow[] {
-  // First combine multi-subject entries
   const combinedEntries = combineMultiSubjectEntries(entries);
-
   const classNames = classList.map((c) => c.className);
 
   const index = new Map<string, TimetableEntry>();
@@ -3028,7 +3143,6 @@ function buildPdfGrid(entries: TimetableEntry[], classList: Class[]): PdfGridRow
 }
 
 function buildPaginatedPdfGrids(entries: TimetableEntry[], classList: Class[]): PdfGridRow[][] {
-  // First combine multi-subject entries
   const combinedEntries = combineMultiSubjectEntries(entries);
 
   const uniqueClassNames = new Set<string>();
@@ -3086,35 +3200,103 @@ function buildPaginatedPdfGrids(entries: TimetableEntry[], classList: Class[]): 
   });
 }
 
+// ============================================
+// BUILD MATRIX TIMETABLE WITH PDF_SCHEDULE TIME RANGES
+// ============================================
+
 function buildMatrixTimetable(entries: TimetableEntry[], classList: Class[]): any {
-  // First combine multi-subject entries
   const combinedEntries = combineMultiSubjectEntries(entries);
   const uniqueClasses = dedupeClassesByName(classList);
-  const timeSlots = ["08:15", "09:00", "09:45", "10:30", "11:00"];
-  const labels = ["1", "2", "3", "BREAK", "4"];
-  const isBreak = [false, false, false, true, false];
 
-  const matrix: any = {};
+  // Use PDF_SCHEDULE for time slots
+  const timeSlots = PDF_SCHEDULE.map(slot => ({
+    start: slot.start,
+    end: slot.end,
+    label: slot.label,
+    isBreak: slot.type === "break"
+  }));
+
   const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 
+  const matrix: any = {};
   days.forEach(day => {
     matrix[day] = {};
-    timeSlots.forEach((time, idx) => {
-      matrix[day][time] = {
-        label: labels[idx],
-        isBreak: isBreak[idx],
+    timeSlots.forEach((slot) => {
+      matrix[day][slot.start] = {
+        label: slot.label,
+        isBreak: slot.isBreak,
+        startTime: slot.start,
+        endTime: slot.end,
         entries: []
       };
     });
   });
 
   combinedEntries.forEach(entry => {
-    if (matrix[entry.day] && matrix[entry.day][entry.startTime]) {
-      matrix[entry.day][entry.startTime].entries.push(entry);
+    let entryStart = entry.startTime;
+    if (entryStart && entryStart.length === 4) {
+      entryStart = `0${entryStart}`;
+    }
+
+    let matchedSlot = timeSlots.find(slot => {
+      return entryStart >= slot.start && entryStart < slot.end;
+    });
+
+    if (!matchedSlot) {
+      matchedSlot = timeSlots.find(slot => slot.start === entryStart);
+    }
+
+    if (!matchedSlot) {
+      matchedSlot = timeSlots.find(slot => {
+        return parseInt(slot.label) === entry.periodNumber;
+      });
+    }
+
+    if (!matchedSlot) {
+      matchedSlot = timeSlots.find(slot => {
+        return entryStart >= slot.start && entry.endTime <= slot.end;
+      });
+    }
+
+    if (matchedSlot) {
+      if (matrix[entry.day] && matrix[entry.day][matchedSlot.start]) {
+        matrix[entry.day][matchedSlot.start].entries.push(entry);
+      }
+    } else {
+      const entryHour = parseInt(entryStart.split(':')[0]);
+      const closestSlot = timeSlots.find(slot => {
+        const slotHour = parseInt(slot.start.split(':')[0]);
+        return slotHour === entryHour;
+      });
+
+      if (closestSlot && matrix[entry.day] && matrix[entry.day][closestSlot.start]) {
+        matrix[entry.day][closestSlot.start].entries.push(entry);
+      } else {
+        const firstSlot = timeSlots[0];
+        if (matrix[entry.day] && matrix[entry.day][firstSlot.start]) {
+          matrix[entry.day][firstSlot.start].entries.push(entry);
+        }
+      }
     }
   });
 
-  return { matrix, days, timeSlots, labels, isBreak, classes: uniqueClasses };
+  const displayTimeSlots = timeSlots.map(slot => ({
+    start: slot.start,
+    end: slot.end,
+    label: slot.label,
+    isBreak: slot.isBreak,
+    display: slot.isBreak ? slot.label : `${slot.start} - ${slot.end}`
+  }));
+
+  return {
+    matrix,
+    days,
+    timeSlots: displayTimeSlots,
+    rawTimeSlots: timeSlots,
+    labels: timeSlots.map(s => s.label),
+    isBreak: timeSlots.map(s => s.isBreak),
+    classes: uniqueClasses
+  };
 }
 
 function dedupeClassesByName(classList: Class[]): Class[] {
@@ -3164,6 +3346,9 @@ function generateMockData() {
   const periods = [1, 2, 3, 4, 5, 6];
   const days = DAYS.slice(0, 5);
 
+  const timeSlots = PDF_SCHEDULE.filter(s => s.type === "period").map(s => s.start);
+  const endSlots = PDF_SCHEDULE.filter(s => s.type === "period").map(s => s.end);
+
   mockTeachers.forEach((teacher, ti) => {
     days.forEach((day, di) => {
       periods.forEach((period, pi) => {
@@ -3171,6 +3356,8 @@ function generateMockData() {
           const cls = mockClasses[(ti + di + pi) % mockClasses.length];
           const subj = mockSubjects[(ti + di) % mockSubjects.length];
           const cycle: "first" | "second" = ti % 2 === 0 ? "first" : "second";
+          const timeIndex = pi % timeSlots.length;
+
           mockEntries.push({
             id: `entry_${ti}_${di}_${pi}`,
             teacherId: teacher._id,
@@ -3181,8 +3368,8 @@ function generateMockData() {
             subjectName: subj.name,
             subjectCode: subj.code,
             day,
-            startTime: `${8 + period}:00`,
-            endTime: `${8 + period + 1}:00`,
+            startTime: timeSlots[timeIndex],
+            endTime: endSlots[timeIndex],
             periodNumber: period,
             cycle,
             ratePerPeriod: CYCLE_RATES[cycle],
@@ -3439,10 +3626,8 @@ export function TimetableAdminPage() {
         console.error('Response data:', error.response.data);
         console.error('Response status:', error.response.status);
 
-        // ✅ Parse the error message from the server
         const errorMsg = error.response.data?.message || `Server error: ${error.response.status}`;
 
-        // ✅ Check if it's a teacher conflict
         if (errorMsg.includes('already assigned to')) {
           throw new Error(errorMsg);
         }
@@ -3476,7 +3661,6 @@ export function TimetableAdminPage() {
 
       setIsSaving(true);
       try {
-        // ✅ FIX: Check if this is an existing entry by ID only
         const isNew = !sanitizedEntry._id &&
           (!sanitizedEntry.id || sanitizedEntry.id.startsWith('entry_'));
 
@@ -3494,7 +3678,6 @@ export function TimetableAdminPage() {
         let updatedEntries: TimetableEntry[];
 
         if (isExisting) {
-          // ✅ UPDATE: Only update if entry exists by ID
           const existingEntry = entries.find((e) => {
             const matchById =
               e.id === sanitizedEntry.id ||
@@ -3542,22 +3725,17 @@ export function TimetableAdminPage() {
             throw new Error(result?.message || "Failed to update");
           }
         } else {
-          // ✅ CREATE NEW: Always create a new entry
           try {
-            // ✅ FIX: Only check teacher conflict if the teacher is different from any existing entry at this time
-            // We should NOT check class conflict because multiple teachers can teach same class at same time
             const teacherConflict = entries.find((e) =>
               e.teacherId === sanitizedEntry.teacherId &&
               e.day === sanitizedEntry.day &&
               e.startTime === sanitizedEntry.startTime &&
               e.academicYear === sanitizedEntry.academicYear &&
-              // ✅ CRITICAL: Skip the entry being edited (if it has an ID)
               e.id !== sanitizedEntry.id &&
               e._id !== sanitizedEntry._id
             );
 
             if (teacherConflict) {
-              // Get the teacher name for the conflict
               const conflictTeacher = teachers.find(t => t._id === teacherConflict.teacherId);
               toast.error(
                 `⚠️ Teacher "${conflictTeacher?.name || teacherConflict.teacherName}" is already assigned to ${teacherConflict.className} at this time on ${sanitizedEntry.day}.\n\n` +
@@ -3587,7 +3765,6 @@ export function TimetableAdminPage() {
               throw new Error(result?.message || "Failed to create entry");
             }
           } catch (error: any) {
-            // Check if it's a duplicate/conflict error from server
             if (error.message?.includes("already has a period") ||
               error.message?.includes("already assigned")) {
               toast.error(
@@ -3622,8 +3799,6 @@ export function TimetableAdminPage() {
     },
     [entries, isSaving, syncToAPI, teachers]
   );
-
-
 
   const handleDeleteEntry = useCallback(
     async (id: string) => {
@@ -3769,7 +3944,6 @@ export function TimetableAdminPage() {
   // ============================================
 
   const exportToCSV = useCallback(() => {
-    // Combine multi-subject entries for CSV export
     const combinedEntries = combineMultiSubjectEntries(filteredEntries);
     const headers = ["Day", "Start Time", "End Time", "Teacher", "Class", "Subject", "Cycle", "Rate", "Room"];
     const rows = combinedEntries.map((e) => [
@@ -4031,9 +4205,13 @@ export function TimetableAdminPage() {
             <tbody>
       `;
 
-      timeSlots.forEach((time, idx) => {
-        const isBreakRow = isBreak[idx];
-        const label = labels[idx];
+      // Use the labels and isBreak from the matrix
+      const matrixLabels = labels;
+      const matrixIsBreak = isBreak;
+
+      timeSlots.forEach((slot, idx) => {
+        const isBreakRow = matrixIsBreak[idx] || false;
+        const label = matrixLabels[idx] || slot.label;
         const displayLabel = isBreakRow ? 'BREAK' : label;
 
         const rowBg = isBreakRow ? 'background: #fef3c7;' : (idx % 2 === 0 ? 'background: #fafafa;' : 'background: white;');
@@ -4042,11 +4220,11 @@ export function TimetableAdminPage() {
           <tr style="${rowBg}">
             <td style="padding: 10px 12px; text-align: center; border: 1px solid #000000; font-weight: 700; font-size: 12px; ${isBreakRow ? 'color: #b45309; background: #fef3c7;' : ''}">
               <div style="font-size: 13px; font-weight: 800;">${displayLabel}</div>
-              <div style="font-size: 9px; color: #000000; font-weight: 400;">${time}</div>
+              ${!isBreakRow ? `<div style="font-size: 9px; color: #000000; font-weight: 400;">${slot.start} - ${slot.end}</div>` : ''}
             </td>
             ${days.map((day) => {
-          const slot = matrix[day]?.[time];
-          if (!slot || slot.entries.length === 0) {
+          const slotData = matrix[day]?.[slot.start];
+          if (!slotData || slotData.entries.length === 0) {
             return `<td style="padding: 10px 12px; text-align: center; border: 1px solid #000000; ${isBreakRow ? 'background: #fef3c7;' : ''}">
                   <span style="color: #000000; font-size: 14px;">-</span>
                 </td>`;
@@ -4057,7 +4235,7 @@ export function TimetableAdminPage() {
                 </td>`;
           }
 
-          const entriesHtml = slot.entries.map(entry => {
+          const entriesHtml = slotData.entries.map(entry => {
             const classObj = classes.find(c => c._id === entry.classId);
             const fullClassName = classObj?.department ? `${classObj.className} ${classObj.department}` : entry.className;
 
@@ -4361,7 +4539,6 @@ export function TimetableAdminPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {/* Class Filter */}
           <select
             value={filterClass}
             onChange={(e) => {
@@ -4378,7 +4555,6 @@ export function TimetableAdminPage() {
             ))}
           </select>
 
-          {/* Teacher Filter */}
           <select
             value={filterTeacher}
             onChange={(e) => {
@@ -4420,7 +4596,6 @@ export function TimetableAdminPage() {
             <Printer className="size-4" /> Print
           </button>
 
-          {/* PDF Download with Format Options */}
           <div className="relative group">
             <button
               onClick={downloadStandardPDF}
@@ -4468,7 +4643,6 @@ export function TimetableAdminPage() {
         </div>
       </div>
 
-      {/* Filters Bar */}
       {(filterClass || filterTeacher) && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-sm text-blue-800 flex items-center justify-between">
           <span>
@@ -4481,7 +4655,6 @@ export function TimetableAdminPage() {
         </div>
       )}
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         <StatCard label="Total Periods" value={filteredEntries.length} />
         <StatCard label="Teachers" value={stats.totalTeachers} />
@@ -4494,7 +4667,6 @@ export function TimetableAdminPage() {
         </div>
       </div>
 
-      {/* Filters */}
       <div className="flex flex-wrap gap-3 items-end">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-black/40" />
@@ -4591,7 +4763,6 @@ export function TimetableAdminPage() {
         )}
       </div>
 
-      {/* View Content - Using combined entries for display */}
       {viewMode === "table" && (
         <TableView
           entries={combineMultiSubjectEntries(filteredEntries)}
@@ -4614,7 +4785,6 @@ export function TimetableAdminPage() {
         />
       )}
 
-      {/* Modals */}
       {(showAddModal || editingEntry) && (
         <TimetableEntryModal
           initial={
@@ -4873,7 +5043,7 @@ const CalendarView = memo(function CalendarView({
           <thead>
             <tr>
               <th className="px-2 py-2 text-xs font-bold text-black/40 uppercase tracking-wider w-16">Time</th>
-              {DAYS.map((day) => (
+              {DAYS.slice(0, 5).map((day) => (
                 <th key={day} className="px-2 py-2 text-xs font-bold text-black/50 uppercase tracking-wider min-w-[120px]">
                   {day.substring(0, 3)}
                 </th>
@@ -4881,37 +5051,47 @@ const CalendarView = memo(function CalendarView({
             </tr>
           </thead>
           <tbody>
-            {CALENDAR_TIME_SLOTS.map((time) => (
-              <tr key={time} className="border-t border-stone-100">
-                <td className="px-2 py-2 text-xs text-black/40 font-medium text-center">{time}</td>
-                {DAYS.map((day) => {
-                  const dayEntries = entriesByDayTime.get(`${day}|${time}`) || [];
-                  return (
-                    <td key={`${day}-${time}`} className="px-1 py-1 min-h-[60px]">
-                      {dayEntries.map((entry) => (
-                        <div
-                          key={entry.id}
-                          onClick={() => onEdit(entry)}
-                          className={`text-xs p-1.5 rounded-lg cursor-pointer hover:opacity-80 transition ${entry.cycle === "first" ? "bg-blue-50 border border-blue-200" : "bg-purple-50 border border-purple-200"
-                            }`}
-                        >
-                          <div className="font-semibold truncate">{entry.teacherName}</div>
-                          <div className={`truncate ${entry.subjectName.includes('/') ? 'text-amber-700 font-bold' : 'text-black/60'}`}>
-                            {entry.subjectName}
+            {PDF_SCHEDULE.map((slot) => {
+              const isBreak = slot.type === "break";
+              return (
+                <tr key={slot.start} className={`border-t border-stone-100 ${isBreak ? 'bg-amber-50' : ''}`}>
+                  <td className={`px-2 py-2 text-xs text-black/40 font-medium text-center ${isBreak ? 'text-amber-600 font-bold' : ''}`}>
+                    {isBreak ? 'BREAK' : `${slot.start} - ${slot.end}`}
+                  </td>
+                  {DAYS.slice(0, 5).map((day) => {
+                    const dayEntries = entries.filter(e =>
+                      e.day === day &&
+                      e.startTime >= slot.start &&
+                      e.endTime <= slot.end
+                    );
+
+                    return (
+                      <td key={`${day}-${slot.start}`} className="px-1 py-1 min-h-[60px]">
+                        {dayEntries.map((entry) => (
+                          <div
+                            key={entry.id}
+                            onClick={() => onEdit(entry)}
+                            className={`text-xs p-1.5 rounded-lg cursor-pointer hover:opacity-80 transition ${entry.cycle === "first" ? "bg-blue-50 border border-blue-200" : "bg-purple-50 border border-purple-200"
+                              }`}
+                          >
+                            <div className="font-semibold truncate">{entry.teacherName}</div>
+                            <div className={`truncate ${entry.subjectName.includes('/') ? 'text-amber-700 font-bold' : 'text-black/60'}`}>
+                              {entry.subjectName}
+                            </div>
+                            <div className="truncate text-black/40 text-[10px]">{entry.className}</div>
+                            <div className="text-[10px] font-bold text-brand mt-0.5">{entry.ratePerPeriod} FRS</div>
                           </div>
-                          <div className="truncate text-black/40 text-[10px]">{entry.className}</div>
-                          <div className="text-[10px] font-bold text-brand mt-0.5">{entry.ratePerPeriod} FRS</div>
-                        </div>
-                      ))}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
+                        ))}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
-      <div className="p-3 border-t border-stone-200 flex gap-4 text-xs">
+      <div className="p-3 border-t border-stone-200 flex gap-4 text-xs flex-wrap">
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded bg-blue-100 border border-blue-200"></div>
           <span className="text-black/60">1st Cycle</span>
@@ -4959,8 +5139,6 @@ function TimetableEntryModal({
 
   const set = <K extends keyof TimetableEntry>(k: K, v: TimetableEntry[K]) => setForm((f) => ({ ...f, [k]: v }));
 
-  // ✅ FIX: Properly detect if this is a new entry or editing an existing one
-  // A new entry has an ID that starts with 'entry_' or has no _id
   const isNewEntry = !initial._id && !initial.id?.startsWith('6a') || initial.id?.startsWith('entry_');
 
   const handleSubmit = () => {
@@ -5128,7 +5306,6 @@ function TimetableEntryModal({
           </div>
         </div>
 
-        {/* Info box about multi-subject support */}
         <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl">
           <p className="text-sm text-amber-800">
             <span className="font-bold">💡 Multi-Subject Support:</span>

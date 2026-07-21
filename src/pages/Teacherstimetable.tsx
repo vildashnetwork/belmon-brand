@@ -101,12 +101,13 @@ const CLASSES = [
 // TIME SLOTS CONFIGURATION
 // ============================================
 
-const TIME_SLOTS = [
-  { start: "08:15", end: "09:00", label: "1", isBreak: false },
-  { start: "09:00", end: "09:45", label: "2", isBreak: false },
-  { start: "09:45", end: "10:30", label: "3", isBreak: false },
-  { start: "10:30", end: "11:00", label: "BREAK", isBreak: true },
-  { start: "11:00", end: "12:00", label: "4", isBreak: false },
+const PDF_SCHEDULE = [
+  { type: "period" as const, label: "1", start: "08:00", end: "08:45" },
+  { type: "period" as const, label: "2", start: "08:45", end: "09:30" },
+  { type: "period" as const, label: "3", start: "09:30", end: "10:15" },
+  { type: "break" as const, label: "BREAK TIME", start: "10:15", end: "10:30" },
+  { type: "period" as const, label: "4", start: "10:30", end: "11:15" },
+  { type: "period" as const, label: "5", start: "11:15", end: "12:00" },
 ];
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
